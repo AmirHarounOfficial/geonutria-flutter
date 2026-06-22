@@ -15,11 +15,15 @@ class Env {
     defaultValue: 'https://app.geonutria.ai/api',
   );
 
-  /// Host used to resolve relative `/static/...` media paths returned by the
-  /// backend (image/output/satellite URLs).
+  /// Base used to resolve relative `/static/...` media paths returned by the
+  /// backend (satellite plots, profile/asset images). These are served by the
+  /// FastAPI app, which lives behind nginx at `/api` — exactly like the web
+  /// frontend, which prefixes such paths with its `/api` base. So this must
+  /// include `/api` (otherwise the path hits the frontend's own assets and
+  /// 404s).
   static const String staticBaseUrl = String.fromEnvironment(
     'STATIC_BASE_URL',
-    defaultValue: 'https://app.geonutria.ai',
+    defaultValue: 'https://app.geonutria.ai/api',
   );
 
   /// WebSocket base for the support chat (`$wsBaseUrl/support/ws/{userId}`).
