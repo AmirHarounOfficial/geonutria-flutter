@@ -28,11 +28,14 @@ class Env {
     defaultValue: 'wss://app.geonutria.ai/api',
   );
 
-  /// Google OAuth client id (web client id used by the backend's
-  /// `/google-login` verification). Supplied later by the project owner.
+  /// Google OAuth **web/server** client id (same Google Cloud project the
+  /// backend uses). Passed to GoogleSignIn as `serverClientId` so Android issues
+  /// tokens with the right audience — the recommended setup that avoids the
+  /// common DEVELOPER_ERROR. The Android & iOS native client ids are matched by
+  /// package/SHA and the iOS Info.plist respectively, not here.
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
-    defaultValue: '',
+    defaultValue: '934884489582-4logkq2nh414npcv1tkvtrs8cplnonlb.apps.googleusercontent.com',
   );
 
   /// Resolve a possibly-relative media path to an absolute URL.
