@@ -12,6 +12,7 @@ import '../billing/ui/paywall_popup.dart';
 import '../consultant/consultant_screen.dart';
 import '../crop_advisor/crop_advisor_screen.dart';
 import '../dashboard/ui/dashboard_screen.dart';
+import '../devices/ui/my_devices_screen.dart';
 import '../leaf_doctor/leaf_doctor_screen.dart';
 import '../profile/ui/profile_screen.dart';
 import '../report/report_screen.dart';
@@ -91,6 +92,8 @@ class _HomeShellState extends State<HomeShell> {
         (c) => const YieldScreen()),
     _Feature('nav_advanced_ai', Icons.auto_awesome_outlined,
         (c) => const AdvancedAiScreen()),
+    _Feature('nav_my_devices', Icons.router_outlined,
+        (c) => const MyDevicesScreen()),
     _Feature('nav_profile', Icons.person_outline,
         (c) => const ProfileScreen()),
     _Feature('nav_billing', Icons.credit_card_outlined,
