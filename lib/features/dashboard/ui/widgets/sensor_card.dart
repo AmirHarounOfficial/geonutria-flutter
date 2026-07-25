@@ -42,15 +42,13 @@ class SensorCard extends StatelessWidget {
               children: [
                 Text(
                   _fmt(value),
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 if (meta.unit.isNotEmpty) ...[
                   const SizedBox(width: 3),
-                  Text(meta.unit,
-                      style: Theme.of(context).textTheme.bodySmall),
+                  Text(meta.unit, style: Theme.of(context).textTheme.bodySmall),
                 ],
               ],
             ),

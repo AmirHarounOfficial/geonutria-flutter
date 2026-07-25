@@ -23,16 +23,20 @@ class IotRepository {
 
   /// `GET /iot-status?user_id=&device_id=` (costs 5 credits).
   Future<IotStatus> getStatus(int deviceId) async {
-    final data = await _api.get('/iot-status',
-        query: _api.authQuery({'device_id': deviceId}));
+    final data = await _api.get(
+      '/iot-status',
+      query: _api.authQuery({'device_id': deviceId}),
+    );
     return IotStatus.fromJson((data as Map).cast<String, dynamic>());
   }
 
   /// `GET /iot/refresh/{id}?user_id=` (costs 1 credit). Forces a sync + weather
   /// enrichment and returns the freshest sensor values.
   Future<Map<String, double>> refresh(int deviceId) async {
-    final data =
-        await _api.get('/iot/refresh/$deviceId', query: _api.authQuery());
+    final data = await _api.get(
+      '/iot/refresh/$deviceId',
+      query: _api.authQuery(),
+    );
     final map = (data as Map).cast<String, dynamic>();
     final sensors = map['data'];
     if (sensors is Map) {
@@ -52,8 +56,10 @@ class IotRepository {
     int limit = 50,
     String interval = 'Live',
   }) async {
-    final data = await _api.get('/iot-history/$deviceId',
-        query: _api.authQuery({'limit': limit, 'interval': interval}));
+    final data = await _api.get(
+      '/iot-history/$deviceId',
+      query: _api.authQuery({'limit': limit, 'interval': interval}),
+    );
     final map = (data as Map).cast<String, dynamic>();
     final list = map['data'];
     if (list is List) {
@@ -81,21 +87,25 @@ class IotRepository {
     required double potassium,
     required double ec,
   }) async {
-    final data = await _api.post('/manual-diagnosis', body: {
-      'user_id': userId,
-      'moisture': moisture,
-      'ambient_temp': ambientTemp,
-      'soil_temp': soilTemp,
-      'humidity': humidity,
-      'ph': ph,
-      'nitrogen': nitrogen,
-      'phosphorus': phosphorus,
-      'potassium': potassium,
-      'ec': ec,
-    });
+    final data = await _api.post(
+      '/manual-diagnosis',
+      body: {
+        'user_id': userId,
+        'moisture': moisture,
+        'ambient_temp': ambientTemp,
+        'soil_temp': soilTemp,
+        'humidity': humidity,
+        'ph': ph,
+        'nitrogen': nitrogen,
+        'phosphorus': phosphorus,
+        'potassium': potassium,
+        'ec': ec,
+      },
+    );
     final map = (data as Map).cast<String, dynamic>();
     return Diagnosis.fromJson(
-        (map['ai_diagnosis'] as Map?)?.cast<String, dynamic>() ?? const {});
+      (map['ai_diagnosis'] as Map?)?.cast<String, dynamic>() ?? const {},
+    );
   }
 
   /// `GET /weather-charts/{id}?interval=Days|Weeks|Months&user_id=`.
@@ -103,8 +113,10 @@ class IotRepository {
     int deviceId, {
     String interval = 'Days',
   }) async {
-    final data = await _api.get('/weather-charts/$deviceId',
-        query: _api.authQuery({'interval': interval}));
+    final data = await _api.get(
+      '/weather-charts/$deviceId',
+      query: _api.authQuery({'interval': interval}),
+    );
     final map = (data as Map).cast<String, dynamic>();
     final list = map['data'];
     if (list is List) {

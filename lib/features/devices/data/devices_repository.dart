@@ -33,17 +33,20 @@ class DevicesRepository {
     double? longitude,
     int? farmId,
   }) async {
-    final data = await _api.post('/my-devices/bind', body: {
-      'user_id': _uid,
-      'device_name': name,
-      'mqtt_topics': mqttTopics,
-      'control_topics': [for (final c in controls) c.toJson()],
-      'ota_topic': otaTopic,
-      'installed_location': location,
-      'latitude': latitude,
-      'longitude': longitude,
-      'farm_id': farmId,
-    });
+    final data = await _api.post(
+      '/my-devices/bind',
+      body: {
+        'user_id': _uid,
+        'device_name': name,
+        'mqtt_topics': mqttTopics,
+        'control_topics': [for (final c in controls) c.toJson()],
+        'ota_topic': otaTopic,
+        'installed_location': location,
+        'latitude': latitude,
+        'longitude': longitude,
+        'farm_id': farmId,
+      },
+    );
     return ((data as Map)['device_id'] as num?)?.toInt() ?? 0;
   }
 
@@ -57,16 +60,20 @@ class DevicesRepository {
     List<ControlEndpoint>? controls,
     String? otaTopic,
   }) async {
-    await _api.put('/my-devices/$deviceId', body: {
-      'user_id': _uid,
-      if (name != null) 'device_name': name,
-      if (location != null) 'installed_location': location,
-      if (latitude != null) 'latitude': latitude,
-      if (longitude != null) 'longitude': longitude,
-      if (mqttTopics != null) 'mqtt_topics': mqttTopics,
-      if (controls != null) 'control_topics': [for (final c in controls) c.toJson()],
-      if (otaTopic != null) 'ota_topic': otaTopic,
-    });
+    await _api.put(
+      '/my-devices/$deviceId',
+      body: {
+        'user_id': _uid,
+        if (name != null) 'device_name': name,
+        if (location != null) 'installed_location': location,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        if (mqttTopics != null) 'mqtt_topics': mqttTopics,
+        if (controls != null)
+          'control_topics': [for (final c in controls) c.toJson()],
+        if (otaTopic != null) 'ota_topic': otaTopic,
+      },
+    );
   }
 
   Future<void> unbind(int deviceId) async {
@@ -74,14 +81,21 @@ class DevicesRepository {
   }
 
   /// Publish a control command to one of the device's registered topics.
-  Future<void> publish(int deviceId, String topic, String payload,
-      {bool retain = false}) async {
-    await _api.post('/my-devices/$deviceId/publish', body: {
-      'user_id': _uid,
-      'topic': topic,
-      'payload': payload,
-      'retain': retain,
-    });
+  Future<void> publish(
+    int deviceId,
+    String topic,
+    String payload, {
+    bool retain = false,
+  }) async {
+    await _api.post(
+      '/my-devices/$deviceId/publish',
+      body: {
+        'user_id': _uid,
+        'topic': topic,
+        'payload': payload,
+        'retain': retain,
+      },
+    );
   }
 
   /// Upload a firmware `.bin` and trigger the OTA command.

@@ -22,12 +22,11 @@ class ManualDiagnosisState extends Equatable {
     LoadState? state,
     Diagnosis? result,
     String? error,
-  }) =>
-      ManualDiagnosisState(
-        state: state ?? this.state,
-        result: result ?? this.result,
-        error: error,
-      );
+  }) => ManualDiagnosisState(
+    state: state ?? this.state,
+    result: result ?? this.result,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [state, result, error];
@@ -37,7 +36,7 @@ class ManualDiagnosisState extends Equatable {
 /// (`POST /manual-diagnosis`, costs 5 credits).
 class ManualDiagnosisCubit extends Cubit<ManualDiagnosisState> {
   ManualDiagnosisCubit(this._repo, this._auth)
-      : super(const ManualDiagnosisState());
+    : super(const ManualDiagnosisState());
 
   final IotRepository _repo;
   final AuthCubit _auth;
@@ -72,7 +71,9 @@ class ManualDiagnosisCubit extends Cubit<ManualDiagnosisState> {
       emit(state.copyWith(state: LoadState.loaded, result: diag));
       _auth.onCreditsSpent(5);
     } on InsufficientCreditsException {
-      emit(state.copyWith(state: LoadState.error, error: 'Insufficient credits'));
+      emit(
+        state.copyWith(state: LoadState.error, error: 'Insufficient credits'),
+      );
     } on AppException catch (e) {
       emit(state.copyWith(state: LoadState.error, error: e.message));
     }

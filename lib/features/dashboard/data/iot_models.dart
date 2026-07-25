@@ -21,13 +21,13 @@ class Device extends Equatable {
   bool get hasLocation => latitude != null && longitude != null;
 
   factory Device.fromJson(Map<String, dynamic> j) => Device(
-        id: (j['id'] as num).toInt(),
-        name: (j['device_name'] ?? j['name'] ?? 'Device ${j['id']}').toString(),
-        farmId: (j['farm_id'] as num?)?.toInt(),
-        location: (j['installed_location'] ?? j['location'])?.toString(),
-        latitude: _toD(j['latitude']),
-        longitude: _toD(j['longitude']),
-      );
+    id: (j['id'] as num).toInt(),
+    name: (j['device_name'] ?? j['name'] ?? 'Device ${j['id']}').toString(),
+    farmId: (j['farm_id'] as num?)?.toInt(),
+    location: (j['installed_location'] ?? j['location'])?.toString(),
+    latitude: _toD(j['latitude']),
+    longitude: _toD(j['longitude']),
+  );
 
   @override
   List<Object?> get props => [id, name, farmId, latitude, longitude];
@@ -46,10 +46,10 @@ class Diagnosis extends Equatable {
   final Map<String, double> features; // feature importances
 
   factory Diagnosis.fromJson(Map<String, dynamic> j) => Diagnosis(
-        status: (j['status'] ?? 'Unknown').toString(),
-        probabilities: _toDoubleMap(j['probabilities']),
-        features: _toDoubleMap(j['features']),
-      );
+    status: (j['status'] ?? 'Unknown').toString(),
+    probabilities: _toDoubleMap(j['probabilities']),
+    features: _toDoubleMap(j['features']),
+  );
 
   static const empty = Diagnosis(
     status: 'Unknown',
@@ -75,15 +75,17 @@ class IotStatus extends Equatable {
   final Diagnosis diagnosis;
   final String? dashboardUrl;
 
-  bool get hasLiveData => diagnosis.status != 'No Live Data' && sensors.isNotEmpty;
+  bool get hasLiveData =>
+      diagnosis.status != 'No Live Data' && sensors.isNotEmpty;
 
   factory IotStatus.fromJson(Map<String, dynamic> j) => IotStatus(
-        mqttStatus: (j['mqtt_status'] ?? 'unknown').toString(),
-        sensors: _toDoubleMap(j['sensors']),
-        diagnosis: Diagnosis.fromJson(
-            (j['ai_diagnosis'] as Map?)?.cast<String, dynamic>() ?? const {}),
-        dashboardUrl: j['dashboard_url']?.toString(),
-      );
+    mqttStatus: (j['mqtt_status'] ?? 'unknown').toString(),
+    sensors: _toDoubleMap(j['sensors']),
+    diagnosis: Diagnosis.fromJson(
+      (j['ai_diagnosis'] as Map?)?.cast<String, dynamic>() ?? const {},
+    ),
+    dashboardUrl: j['dashboard_url']?.toString(),
+  );
 
   @override
   List<Object?> get props => [mqttStatus, sensors, diagnosis];
@@ -122,20 +124,20 @@ class HistoryPoint extends Equatable {
   final double? epsilon;
 
   factory HistoryPoint.fromJson(Map<String, dynamic> j) => HistoryPoint(
-        timestamp: (j['timestamp'] ?? '').toString(),
-        nitrogen: _toD(j['nitrogen']),
-        phosphorus: _toD(j['phosphorus']),
-        potassium: _toD(j['potassium']),
-        temperature: _toD(j['temperature']),
-        humidity: _toD(j['humidity']),
-        ph: _toD(j['ph']),
-        moisture: _toD(j['moisture']),
-        soilTemp: _toD(j['soil_temp']),
-        ec: _toD(j['ec']),
-        salinity: _toD(j['salinity']),
-        tds: _toD(j['tds']),
-        epsilon: _toD(j['epsilon']),
-      );
+    timestamp: (j['timestamp'] ?? '').toString(),
+    nitrogen: _toD(j['nitrogen']),
+    phosphorus: _toD(j['phosphorus']),
+    potassium: _toD(j['potassium']),
+    temperature: _toD(j['temperature']),
+    humidity: _toD(j['humidity']),
+    ph: _toD(j['ph']),
+    moisture: _toD(j['moisture']),
+    soilTemp: _toD(j['soil_temp']),
+    ec: _toD(j['ec']),
+    salinity: _toD(j['salinity']),
+    tds: _toD(j['tds']),
+    epsilon: _toD(j['epsilon']),
+  );
 
   @override
   List<Object?> get props => [timestamp];
@@ -164,15 +166,15 @@ class WeatherPoint extends Equatable {
   final double? solar;
 
   factory WeatherPoint.fromJson(Map<String, dynamic> j) => WeatherPoint(
-        label: (j['label'] ?? '').toString(),
-        isForecast: j['is_forecast'] == true,
-        temperatureC: _toD(j['temperature_c']),
-        humidity: _toD(j['relative_humidity']),
-        precipitation: _toD(j['precipitation_mm']),
-        cloud: _toD(j['cloud_cover_pct']),
-        wind: _toD(j['wind_speed_kmh']),
-        solar: _toD(j['solar_radiation_wm2']),
-      );
+    label: (j['label'] ?? '').toString(),
+    isForecast: j['is_forecast'] == true,
+    temperatureC: _toD(j['temperature_c']),
+    humidity: _toD(j['relative_humidity']),
+    precipitation: _toD(j['precipitation_mm']),
+    cloud: _toD(j['cloud_cover_pct']),
+    wind: _toD(j['wind_speed_kmh']),
+    solar: _toD(j['solar_radiation_wm2']),
+  );
 
   @override
   List<Object?> get props => [label, isForecast];

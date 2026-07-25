@@ -16,6 +16,7 @@ import 'sensor_meta.dart';
 import 'widgets/diagnosis_card.dart';
 import 'widgets/history_chart.dart';
 import 'widgets/manual_entry_form.dart';
+import 'widgets/quick_controls_card.dart';
 import 'widgets/sensor_card.dart';
 import 'widgets/weather_chart.dart';
 
@@ -165,6 +166,7 @@ class _LiveTab extends StatelessWidget {
         children: [
           _MqttBadge(status: iot.mqttStatus, live: iot.hasLiveData),
           const SizedBox(height: 12),
+          QuickControlsCard(preferredDeviceId: state.selectedId),
           DiagnosisCard(diagnosis: iot.diagnosis),
           const SizedBox(height: 16),
           if (!iot.hasLiveData)
@@ -199,8 +201,10 @@ class _LiveTab extends StatelessWidget {
             ),
           if (device != null && device.hasLocation) ...[
             const SizedBox(height: 16),
-            Text('Device location',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'Device location',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -277,22 +281,21 @@ class _HistoryTabState extends State<_HistoryTab>
                   ChoiceChip(
                     label: Text(iv),
                     selected: state.interval == iv,
-                    onSelected: (_) => context
-                        .read<HistoryCubit>()
-                        .load(widget.deviceId, interval: iv),
+                    onSelected: (_) => context.read<HistoryCubit>().load(
+                      widget.deviceId,
+                      interval: iv,
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 16),
             if (state.state == LoadState.loading)
-              const Padding(
-                padding: EdgeInsets.all(40),
-                child: LoadingView(),
-              )
+              const Padding(padding: EdgeInsets.all(40), child: LoadingView())
             else if (state.state == LoadState.error)
               ErrorView(
                 message: state.error ?? context.tr('error_generic'),
-                onRetry: () => context.read<HistoryCubit>().load(widget.deviceId),
+                onRetry: () =>
+                    context.read<HistoryCubit>().load(widget.deviceId),
               )
             else if (state.points.isEmpty)
               EmptyView(message: context.tr('no_data'))
@@ -341,20 +344,21 @@ class _WeatherTabState extends State<_WeatherTab>
                   ChoiceChip(
                     label: Text(iv),
                     selected: state.interval == iv,
-                    onSelected: (_) => context
-                        .read<WeatherCubit>()
-                        .load(widget.deviceId, interval: iv),
+                    onSelected: (_) => context.read<WeatherCubit>().load(
+                      widget.deviceId,
+                      interval: iv,
+                    ),
                   ),
               ],
             ),
             const SizedBox(height: 16),
             if (state.state == LoadState.loading)
-              const Padding(
-                  padding: EdgeInsets.all(40), child: LoadingView())
+              const Padding(padding: EdgeInsets.all(40), child: LoadingView())
             else if (state.state == LoadState.error)
               ErrorView(
                 message: state.error ?? context.tr('error_generic'),
-                onRetry: () => context.read<WeatherCubit>().load(widget.deviceId),
+                onRetry: () =>
+                    context.read<WeatherCubit>().load(widget.deviceId),
               )
             else if (state.points.isEmpty)
               EmptyView(message: context.tr('no_data'))

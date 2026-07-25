@@ -2,26 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/localization/app_localizations.dart';
-import '../../../core/network/api_client.dart';
 import '../../../core/widgets/map_location_picker.dart';
 import '../../../core/widgets/status_views.dart';
 import '../../dashboard/bloc/history_cubit.dart' show LoadState;
 import '../bloc/devices_cubit.dart';
-import '../data/devices_repository.dart';
 import 'device_detail_screen.dart';
 
 /// "My Devices" — list bound devices and bind new ones.
+///
+/// The [DevicesCubit] is provided by the shell so the dashboard shares the
+/// same device list and control state.
 class MyDevicesScreen extends StatelessWidget {
   const MyDevicesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (ctx) =>
-          DevicesCubit(DevicesRepository(ctx.read<ApiClient>()))..load(),
-      child: const _MyDevicesView(),
-    );
-  }
+  Widget build(BuildContext context) => const _MyDevicesView();
 }
 
 class _MyDevicesView extends StatelessWidget {
@@ -41,48 +36,56 @@ class _MyDevicesView extends StatelessWidget {
           body: switch (state.state) {
             LoadState.loading => const LoadingView(),
             LoadState.error => ErrorView(
-                message: state.error ?? context.tr('error_generic'),
-                onRetry: () => context.read<DevicesCubit>().load(),
-              ),
-            _ => state.devices.isEmpty
-                ? const EmptyView(
-                    message: 'No devices yet. Bind your first device.',
-                    icon: Icons.router_outlined,
-                  )
-                : RefreshIndicator(
-                    onRefresh: () => context.read<DevicesCubit>().load(),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: state.devices.length,
-                      itemBuilder: (ctx, i) {
-                        final d = state.devices[i];
-                        return Card(
-                          child: ListTile(
-                            leading: const CircleAvatar(child: Icon(Icons.router)),
-                            title: Text(d.name),
-                            subtitle: Text([
-                              if (d.location != null && d.location!.isNotEmpty)
-                                d.location,
-                              '${d.mqttTopics.length} topics · ${d.controls.length} controls',
-                              if (d.firmwareVersion != null)
-                                'fw ${d.firmwareVersion}',
-                            ].whereType<String>().join('\n')),
-                            isThreeLine: true,
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () {
-                              final cubit = ctx.read<DevicesCubit>();
-                              Navigator.of(ctx).push(MaterialPageRoute(
-                                builder: (_) => BlocProvider.value(
-                                  value: cubit,
-                                  child: DeviceDetailScreen(deviceId: d.id),
-                                ),
-                              ));
-                            },
-                          ),
-                        );
-                      },
+              message: state.error ?? context.tr('error_generic'),
+              onRetry: () => context.read<DevicesCubit>().load(),
+            ),
+            _ =>
+              state.devices.isEmpty
+                  ? const EmptyView(
+                      message: 'No devices yet. Bind your first device.',
+                      icon: Icons.router_outlined,
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () => context.read<DevicesCubit>().load(),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: state.devices.length,
+                        itemBuilder: (ctx, i) {
+                          final d = state.devices[i];
+                          return Card(
+                            child: ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.router),
+                              ),
+                              title: Text(d.name),
+                              subtitle: Text(
+                                [
+                                  if (d.location != null &&
+                                      d.location!.isNotEmpty)
+                                    d.location,
+                                  '${d.mqttTopics.length} topics · ${d.controls.length} controls',
+                                  if (d.firmwareVersion != null)
+                                    'fw ${d.firmwareVersion}',
+                                ].whereType<String>().join('\n'),
+                              ),
+                              isThreeLine: true,
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                final cubit = ctx.read<DevicesCubit>();
+                                Navigator.of(ctx).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => BlocProvider.value(
+                                      value: cubit,
+                                      child: DeviceDetailScreen(deviceId: d.id),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
           },
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => _showBindSheet(context),
@@ -99,10 +102,8 @@ class _MyDevicesView extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => BlocProvider.value(
-        value: cubit,
-        child: const _BindSheet(),
-      ),
+      builder: (_) =>
+          BlocProvider.value(value: cubit, child: const _BindSheet()),
     );
   }
 }
@@ -135,7 +136,10 @@ class _BindSheetState extends State<_BindSheet> {
 
   Future<void> _submit() async {
     final name = _name.text.trim();
-    final topics = _topics.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+    final topics = _topics
+        .map((c) => c.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -144,13 +148,13 @@ class _BindSheetState extends State<_BindSheet> {
     }
     setState(() => _busy = true);
     final ok = await context.read<DevicesCubit>().bind(
-          name: name,
-          mqttTopics: topics,
-          otaTopic: _ota.text.trim().isEmpty ? null : _ota.text.trim(),
-          location: _location.text.trim().isEmpty ? null : _location.text.trim(),
-          latitude: _lat,
-          longitude: _lon,
-        );
+      name: name,
+      mqttTopics: topics,
+      otaTopic: _ota.text.trim().isEmpty ? null : _ota.text.trim(),
+      location: _location.text.trim().isEmpty ? null : _location.text.trim(),
+      latitude: _lat,
+      longitude: _lon,
+    );
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) Navigator.of(context).pop();
@@ -170,7 +174,10 @@ class _BindSheetState extends State<_BindSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Bind a device', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Bind a device',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _name,
@@ -187,8 +194,10 @@ class _BindSheetState extends State<_BindSheet> {
               }),
             ),
             const SizedBox(height: 16),
-            Text('MQTT topics (monitored)',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'MQTT topics (monitored)',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 4),
             for (var i = 0; i < _topics.length; i++)
               Padding(
@@ -237,7 +246,10 @@ class _BindSheetState extends State<_BindSheet> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : Text(context.tr('save')),
             ),
           ],

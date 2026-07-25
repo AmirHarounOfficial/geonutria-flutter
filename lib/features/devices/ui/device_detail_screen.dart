@@ -5,8 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/error/app_exception.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/widgets/status_views.dart';
+import '../../auth/bloc/auth_cubit.dart';
 import '../bloc/devices_cubit.dart';
 import '../data/device_models.dart';
+import 'widgets/device_control_tile.dart';
 
 /// Detail + control screen for a single bound device.
 class DeviceDetailScreen extends StatelessWidget {
@@ -46,7 +48,12 @@ class DeviceDetailScreen extends StatelessWidget {
               const SizedBox(height: 16),
               _ControlsSection(device: dev),
               const SizedBox(height: 16),
-              _FirmwareSection(device: dev),
+              // Flashing firmware can brick a device, so OTA is admin-only.
+              // The backend enforces this too — this just hides the UI.
+              if (context.select((AuthCubit c) => c.state.isAdmin))
+                _FirmwareSection(device: dev)
+              else
+                _FirmwareLockedNote(version: dev.firmwareVersion),
             ],
           ),
         );
@@ -106,11 +113,15 @@ class _InfoCard extends StatelessWidget {
             if (device.location != null && device.location!.isNotEmpty)
               Text(device.location!),
             const SizedBox(height: 6),
-            Text('Monitored topics: ${device.mqttTopics.join(", ")}',
-                style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              'Monitored topics: ${device.mqttTopics.join(", ")}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             if (device.otaTopic != null)
-              Text('OTA topic: ${device.otaTopic}',
-                  style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                'OTA topic: ${device.otaTopic}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
           ],
         ),
       ),
@@ -134,8 +145,10 @@ class _ControlsSection extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text('Controls',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  child: Text(
+                    'Controls',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: () => _addOrEdit(context, null),
@@ -151,11 +164,20 @@ class _ControlsSection extends StatelessWidget {
               )
             else
               for (var i = 0; i < device.controls.length; i++)
-                _ControlRow(
-                  device: device,
+                DeviceControlTile(
+                  key: ValueKey('${device.id}:${device.controls[i].topic}'),
+                  deviceId: device.id,
                   control: device.controls[i],
-                  onEdit: () => _addOrEdit(context, i),
-                  onDelete: () => _delete(context, i),
+                  subtitle: device.controls[i].topic,
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) => v == 'edit'
+                        ? _addOrEdit(context, i)
+                        : _delete(context, i),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
+                  ),
                 ),
           ],
         ),
@@ -175,127 +197,7 @@ class _ControlsSection extends StatelessWidget {
       isScrollControlled: true,
       builder: (_) => BlocProvider.value(
         value: cubit,
-        child: _ControlEditor(
-          device: device,
-          index: index,
-        ),
-      ),
-    );
-  }
-}
-
-class _ControlRow extends StatefulWidget {
-  const _ControlRow({
-    required this.device,
-    required this.control,
-    required this.onEdit,
-    required this.onDelete,
-  });
-  final MyDevice device;
-  final ControlEndpoint control;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  @override
-  State<_ControlRow> createState() => _ControlRowState();
-}
-
-class _ControlRowState extends State<_ControlRow> {
-  bool _on = false;
-  double _value = 0;
-  bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _value = widget.control.min;
-  }
-
-  Future<void> _publish(String payload) async {
-    setState(() => _busy = true);
-    try {
-      await context
-          .read<DevicesCubit>()
-          .publish(widget.device.id, widget.control.topic, payload);
-    } on AppException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = widget.control;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(c.label,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
-              if (_busy)
-                const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-              if (c.isSwitch)
-                Switch(
-                  value: _on,
-                  onChanged: _busy
-                      ? null
-                      : (v) {
-                          setState(() => _on = v);
-                          _publish(v ? c.onPayload : c.offPayload);
-                        },
-                ),
-              PopupMenuButton<String>(
-                onSelected: (v) => v == 'edit' ? widget.onEdit() : widget.onDelete(),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-              ),
-            ],
-          ),
-          Text(c.topic, style: Theme.of(context).textTheme.bodySmall),
-          if (!c.isSwitch) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: _value.clamp(c.min, c.max),
-                    min: c.min,
-                    max: c.max,
-                    label: _value.toStringAsFixed(0),
-                    onChanged: (v) => setState(() => _value = v),
-                  ),
-                ),
-                SizedBox(
-                  width: 56,
-                  child: Text(
-                    '${_value.toStringAsFixed(0)}${c.unit ?? ''}',
-                    textAlign: TextAlign.end,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _busy ? null : () => _publish(_value.toStringAsFixed(0)),
-                ),
-              ],
-            ),
-          ],
-          const Divider(height: 8),
-        ],
+        child: _ControlEditor(device: device, index: index),
       ),
     );
   }
@@ -311,8 +213,9 @@ class _ControlEditor extends StatefulWidget {
 }
 
 class _ControlEditorState extends State<_ControlEditor> {
-  late final ControlEndpoint? _existing =
-      widget.index != null ? widget.device.controls[widget.index!] : null;
+  late final ControlEndpoint? _existing = widget.index != null
+      ? widget.device.controls[widget.index!]
+      : null;
 
   late final _label = TextEditingController(text: _existing?.label ?? '');
   late final _topic = TextEditingController(text: _existing?.topic ?? '');
@@ -367,17 +270,33 @@ class _ControlEditorState extends State<_ControlEditor> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.index == null ? 'Add control' : 'Edit control',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              widget.index == null ? 'Add control' : 'Edit control',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 12),
-            TextField(controller: _label, decoration: const InputDecoration(labelText: 'Label')),
+            TextField(
+              controller: _label,
+              decoration: const InputDecoration(labelText: 'Label'),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: _topic, decoration: const InputDecoration(labelText: 'Topic')),
+            TextField(
+              controller: _topic,
+              decoration: const InputDecoration(labelText: 'Topic'),
+            ),
             const SizedBox(height: 8),
             SegmentedButton<String>(
               segments: const [
-                ButtonSegment(value: 'switch', label: Text('Switch'), icon: Icon(Icons.toggle_on)),
-                ButtonSegment(value: 'value', label: Text('Value'), icon: Icon(Icons.tune)),
+                ButtonSegment(
+                  value: 'switch',
+                  label: Text('Switch'),
+                  icon: Icon(Icons.toggle_on),
+                ),
+                ButtonSegment(
+                  value: 'value',
+                  label: Text('Value'),
+                  icon: Icon(Icons.tune),
+                ),
               ],
               selected: {_type},
               onSelectionChanged: (s) => setState(() => _type = s.first),
@@ -386,19 +305,50 @@ class _ControlEditorState extends State<_ControlEditor> {
             if (_type == 'switch')
               Row(
                 children: [
-                  Expanded(child: TextField(controller: _on, decoration: const InputDecoration(labelText: 'On payload'))),
+                  Expanded(
+                    child: TextField(
+                      controller: _on,
+                      decoration: const InputDecoration(
+                        labelText: 'On payload',
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: _off, decoration: const InputDecoration(labelText: 'Off payload'))),
+                  Expanded(
+                    child: TextField(
+                      controller: _off,
+                      decoration: const InputDecoration(
+                        labelText: 'Off payload',
+                      ),
+                    ),
+                  ),
                 ],
               )
             else
               Row(
                 children: [
-                  Expanded(child: TextField(controller: _min, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Min'))),
+                  Expanded(
+                    child: TextField(
+                      controller: _min,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Min'),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: _max, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Max'))),
+                  Expanded(
+                    child: TextField(
+                      controller: _max,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Max'),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: _unit, decoration: const InputDecoration(labelText: 'Unit'))),
+                  Expanded(
+                    child: TextField(
+                      controller: _unit,
+                      decoration: const InputDecoration(labelText: 'Unit'),
+                    ),
+                  ),
                 ],
               ),
             const SizedBox(height: 16),
@@ -411,6 +361,25 @@ class _ControlEditorState extends State<_ControlEditor> {
 }
 
 // ── Firmware ─────────────────────────────────────────────────────────────────
+
+/// Shown in place of the OTA controls for non-admin users: the current version
+/// stays visible, but pushing an update is not offered.
+class _FirmwareLockedNote extends StatelessWidget {
+  const _FirmwareLockedNote({required this.version});
+  final String? version;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.lock_outline),
+        title: Text('Firmware${version != null ? ' · $version' : ''}'),
+        subtitle: Text(context.tr('firmware_admin_only')),
+      ),
+    );
+  }
+}
+
 class _FirmwareSection extends StatefulWidget {
   const _FirmwareSection({required this.device});
   final MyDevice device;
@@ -442,24 +411,31 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
     if (bytes == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Pick a firmware file first.')));
+        ..showSnackBar(
+          const SnackBar(content: Text('Pick a firmware file first.')),
+        );
       return;
     }
     if (widget.device.otaTopic == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Set an OTA topic first (edit the device).')));
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Set an OTA topic first (edit the device).'),
+          ),
+        );
       return;
     }
     setState(() => _busy = true);
     try {
       final v = await context.read<DevicesCubit>().pushFirmware(
-            widget.device.id,
-            bytes: bytes,
-            fileName: _file!.name,
-            version: _version.text.trim().isEmpty ? 'unknown' : _version.text.trim(),
-          );
+        widget.device.id,
+        bytes: bytes,
+        fileName: _file!.name,
+        version: _version.text.trim().isEmpty
+            ? 'unknown'
+            : _version.text.trim(),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -486,8 +462,10 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
           children: [
             Text('Firmware', style: Theme.of(context).textTheme.titleMedium),
             if (widget.device.firmwareVersion != null)
-              Text('Current: ${widget.device.firmwareVersion}',
-                  style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                'Current: ${widget.device.firmwareVersion}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -510,7 +488,11 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.system_update_alt),
               label: const Text('Push update (OTA)'),
             ),
@@ -532,12 +514,16 @@ class _EditSheet extends StatefulWidget {
 
 class _EditSheetState extends State<_EditSheet> {
   late final _name = TextEditingController(text: widget.device.name);
-  late final _location =
-      TextEditingController(text: widget.device.location ?? '');
+  late final _location = TextEditingController(
+    text: widget.device.location ?? '',
+  );
   late final _ota = TextEditingController(text: widget.device.otaTopic ?? '');
-  late final List<TextEditingController> _topics = widget.device.mqttTopics.isEmpty
+  late final List<TextEditingController> _topics =
+      widget.device.mqttTopics.isEmpty
       ? [TextEditingController()]
-      : widget.device.mqttTopics.map((t) => TextEditingController(text: t)).toList();
+      : widget.device.mqttTopics
+            .map((t) => TextEditingController(text: t))
+            .toList();
 
   @override
   void dispose() {
@@ -551,15 +537,17 @@ class _EditSheetState extends State<_EditSheet> {
   }
 
   void _save() {
-    final topics =
-        _topics.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+    final topics = _topics
+        .map((c) => c.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
     context.read<DevicesCubit>().update(
-          widget.device.id,
-          name: _name.text.trim(),
-          location: _location.text.trim(),
-          mqttTopics: topics,
-          otaTopic: _ota.text.trim(),
-        );
+      widget.device.id,
+      name: _name.text.trim(),
+      location: _location.text.trim(),
+      mqttTopics: topics,
+      otaTopic: _ota.text.trim(),
+    );
     Navigator.of(context).pop();
   }
 
@@ -579,9 +567,15 @@ class _EditSheetState extends State<_EditSheet> {
           children: [
             Text('Edit device', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
-            TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
+            TextField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: _location, decoration: const InputDecoration(labelText: 'Location')),
+            TextField(
+              controller: _location,
+              decoration: const InputDecoration(labelText: 'Location'),
+            ),
             const SizedBox(height: 12),
             Text('MQTT topics', style: Theme.of(context).textTheme.titleSmall),
             for (var i = 0; i < _topics.length; i++)
@@ -592,7 +586,9 @@ class _EditSheetState extends State<_EditSheet> {
                     Expanded(
                       child: TextField(
                         controller: _topics[i],
-                        decoration: InputDecoration(labelText: 'Topic ${i + 1}'),
+                        decoration: InputDecoration(
+                          labelText: 'Topic ${i + 1}',
+                        ),
                       ),
                     ),
                     if (_topics.length > 1)
@@ -606,12 +602,16 @@ class _EditSheetState extends State<_EditSheet> {
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
-                onPressed: () => setState(() => _topics.add(TextEditingController())),
+                onPressed: () =>
+                    setState(() => _topics.add(TextEditingController())),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add topic'),
               ),
             ),
-            TextField(controller: _ota, decoration: const InputDecoration(labelText: 'OTA topic')),
+            TextField(
+              controller: _ota,
+              decoration: const InputDecoration(labelText: 'OTA topic'),
+            ),
             const SizedBox(height: 16),
             FilledButton(onPressed: _save, child: Text(context.tr('save'))),
           ],

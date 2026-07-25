@@ -21,12 +21,11 @@ class DevicesState extends Equatable {
     LoadState? state,
     List<MyDevice>? devices,
     String? error,
-  }) =>
-      DevicesState(
-        state: state ?? this.state,
-        devices: devices ?? this.devices,
-        error: error,
-      );
+  }) => DevicesState(
+    state: state ?? this.state,
+    devices: devices ?? this.devices,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [state, devices, error];

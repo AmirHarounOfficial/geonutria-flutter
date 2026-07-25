@@ -21,20 +21,26 @@ class HistoryState extends Equatable {
   final List<HistoryPoint> points;
   final String? error;
 
-  static const intervals = ['Live', 'Hours', 'Days', 'Weeks', 'Months', 'Years'];
+  static const intervals = [
+    'Live',
+    'Hours',
+    'Days',
+    'Weeks',
+    'Months',
+    'Years',
+  ];
 
   HistoryState copyWith({
     LoadState? state,
     String? interval,
     List<HistoryPoint>? points,
     String? error,
-  }) =>
-      HistoryState(
-        state: state ?? this.state,
-        interval: interval ?? this.interval,
-        points: points ?? this.points,
-        error: error,
-      );
+  }) => HistoryState(
+    state: state ?? this.state,
+    interval: interval ?? this.interval,
+    points: points ?? this.points,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [state, interval, points, error];
@@ -52,12 +58,17 @@ class HistoryCubit extends Cubit<HistoryState> {
     final iv = interval ?? state.interval;
     emit(state.copyWith(state: LoadState.loading, interval: iv, error: null));
     try {
-      final pts = await _repo.getHistory(deviceId,
-          interval: iv, limit: iv == 'Live' ? 50 : 30);
+      final pts = await _repo.getHistory(
+        deviceId,
+        interval: iv,
+        limit: iv == 'Live' ? 50 : 30,
+      );
       emit(state.copyWith(state: LoadState.loaded, points: pts));
       _auth.onCreditsSpent(5);
     } on InsufficientCreditsException {
-      emit(state.copyWith(state: LoadState.error, error: 'Insufficient credits'));
+      emit(
+        state.copyWith(state: LoadState.error, error: 'Insufficient credits'),
+      );
     } on AppException catch (e) {
       emit(state.copyWith(state: LoadState.error, error: e.message));
     }

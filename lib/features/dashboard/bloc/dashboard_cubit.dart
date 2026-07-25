@@ -40,19 +40,24 @@ class DashboardState extends Equatable {
     bool? statusLoading,
     String? error,
     bool clearIot = false,
-  }) =>
-      DashboardState(
-        status: status ?? this.status,
-        devices: devices ?? this.devices,
-        selectedId: selectedId ?? this.selectedId,
-        iot: clearIot ? null : (iot ?? this.iot),
-        statusLoading: statusLoading ?? this.statusLoading,
-        error: error,
-      );
+  }) => DashboardState(
+    status: status ?? this.status,
+    devices: devices ?? this.devices,
+    selectedId: selectedId ?? this.selectedId,
+    iot: clearIot ? null : (iot ?? this.iot),
+    statusLoading: statusLoading ?? this.statusLoading,
+    error: error,
+  );
 
   @override
-  List<Object?> get props =>
-      [status, devices, selectedId, iot, statusLoading, error];
+  List<Object?> get props => [
+    status,
+    devices,
+    selectedId,
+    iot,
+    statusLoading,
+    error,
+  ];
 }
 
 class DashboardCubit extends Cubit<DashboardState> {
@@ -70,11 +75,13 @@ class DashboardCubit extends Cubit<DashboardState> {
         return;
       }
       final selected = state.selectedId ?? devices.first.id;
-      emit(state.copyWith(
-        status: DashStatus.ready,
-        devices: devices,
-        selectedId: selected,
-      ));
+      emit(
+        state.copyWith(
+          status: DashStatus.ready,
+          devices: devices,
+          selectedId: selected,
+        ),
+      );
       await loadStatus();
     } on AppException catch (e) {
       emit(state.copyWith(status: DashStatus.error, error: e.message));

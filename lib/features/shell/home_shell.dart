@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/localization/app_localizations.dart';
+import '../../core/network/api_client.dart';
 import '../../core/network/paywall_notifier.dart';
 import '../../core/settings/settings_cubit.dart';
 import '../../core/widgets/app_logo.dart';
@@ -12,6 +13,8 @@ import '../billing/ui/paywall_popup.dart';
 import '../consultant/consultant_screen.dart';
 import '../crop_advisor/crop_advisor_screen.dart';
 import '../dashboard/ui/dashboard_screen.dart';
+import '../devices/bloc/devices_cubit.dart';
+import '../devices/data/devices_repository.dart';
 import '../devices/ui/my_devices_screen.dart';
 import '../leaf_doctor/leaf_doctor_screen.dart';
 import '../profile/ui/profile_screen.dart';
@@ -22,7 +25,12 @@ import '../yield_predict/yield_screen.dart';
 
 /// A navigable feature entry in the shell.
 class _Feature {
-  const _Feature(this.titleKey, this.icon, this.builder, {this.primary = false});
+  const _Feature(
+    this.titleKey,
+    this.icon,
+    this.builder, {
+    this.primary = false,
+  });
   final String titleKey;
   final IconData icon;
   final WidgetBuilder builder;
@@ -61,7 +69,9 @@ class _HomeShellState extends State<HomeShell> {
     PaywallPopup.show(
       context,
       onTopUp: () {
-        final billing = _features.indexWhere((f) => f.titleKey == 'nav_billing');
+        final billing = _features.indexWhere(
+          (f) => f.titleKey == 'nav_billing',
+        );
         if (billing >= 0) _select(billing);
       },
     ).whenComplete(() {
@@ -74,40 +84,69 @@ class _HomeShellState extends State<HomeShell> {
   // Feature registry. Screens are swapped from PlaceholderScreen to the real
   // implementation as each phase lands.
   late final List<_Feature> _features = [
-    _Feature('nav_dashboard', Icons.dashboard_outlined,
-        (c) => const DashboardScreen(),
-        primary: true),
-    _Feature('nav_leaf_doctor', Icons.local_florist_outlined,
-        (c) => const LeafDoctorScreen(),
-        primary: true),
-    _Feature('nav_satellite', Icons.satellite_alt_outlined,
-        (c) => const SatelliteScreen(),
-        primary: true),
-    _Feature('nav_consultant', Icons.smart_toy_outlined,
-        (c) => const ConsultantScreen(),
-        primary: true),
-    _Feature('nav_crop_advisor', Icons.grass_outlined,
-        (c) => const CropAdvisorScreen()),
-    _Feature('nav_yield', Icons.analytics_outlined,
-        (c) => const YieldScreen()),
-    _Feature('nav_advanced_ai', Icons.auto_awesome_outlined,
-        (c) => const AdvancedAiScreen()),
-    _Feature('nav_my_devices', Icons.router_outlined,
-        (c) => const MyDevicesScreen()),
-    _Feature('nav_profile', Icons.person_outline,
-        (c) => const ProfileScreen()),
-    _Feature('nav_billing', Icons.credit_card_outlined,
-        (c) => const BillingScreen()),
-    _Feature('nav_report', Icons.picture_as_pdf_outlined,
-        (c) => const ReportScreen()),
-    _Feature('nav_support', Icons.support_agent_outlined,
-        (c) => const SupportScreen()),
+    _Feature(
+      'nav_dashboard',
+      Icons.dashboard_outlined,
+      (c) => const DashboardScreen(),
+      primary: true,
+    ),
+    _Feature(
+      'nav_my_devices',
+      Icons.router_outlined,
+      (c) => const MyDevicesScreen(),
+      primary: true,
+    ),
+    _Feature(
+      'nav_leaf_doctor',
+      Icons.local_florist_outlined,
+      (c) => const LeafDoctorScreen(),
+      primary: true,
+    ),
+    _Feature(
+      'nav_satellite',
+      Icons.satellite_alt_outlined,
+      (c) => const SatelliteScreen(),
+      primary: true,
+    ),
+    _Feature(
+      'nav_consultant',
+      Icons.smart_toy_outlined,
+      (c) => const ConsultantScreen(),
+      primary: true,
+    ),
+    _Feature(
+      'nav_crop_advisor',
+      Icons.grass_outlined,
+      (c) => const CropAdvisorScreen(),
+    ),
+    _Feature('nav_yield', Icons.analytics_outlined, (c) => const YieldScreen()),
+    _Feature(
+      'nav_advanced_ai',
+      Icons.auto_awesome_outlined,
+      (c) => const AdvancedAiScreen(),
+    ),
+    _Feature('nav_profile', Icons.person_outline, (c) => const ProfileScreen()),
+    _Feature(
+      'nav_billing',
+      Icons.credit_card_outlined,
+      (c) => const BillingScreen(),
+    ),
+    _Feature(
+      'nav_report',
+      Icons.picture_as_pdf_outlined,
+      (c) => const ReportScreen(),
+    ),
+    _Feature(
+      'nav_support',
+      Icons.support_agent_outlined,
+      (c) => const SupportScreen(),
+    ),
   ];
 
   List<int> get _primaryIndexes => [
-        for (var i = 0; i < _features.length; i++)
-          if (_features[i].primary) i,
-      ];
+    for (var i = 0; i < _features.length; i++)
+      if (_features[i].primary) i,
+  ];
 
   void _select(int featureIndex) {
     setState(() => _index = featureIndex);
@@ -119,33 +158,39 @@ class _HomeShellState extends State<HomeShell> {
     final primaryIdx = _primaryIndexes;
     final selectedBottom = primaryIdx.indexOf(_index);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.tr(feature.titleKey)),
-        actions: const [_CreditsBadge(), SizedBox(width: 8)],
-      ),
-      drawer: _AppDrawer(
-        features: _features,
-        selected: _index,
-        onSelect: (i) {
-          Navigator.of(context).pop();
-          _select(i);
-        },
-      ),
-      body: IndexedStack(
-        index: _index,
-        children: [for (final f in _features) Builder(builder: f.builder)],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedBottom < 0 ? 0 : selectedBottom,
-        onDestinationSelected: (i) => _select(primaryIdx[i]),
-        destinations: [
-          for (final i in primaryIdx)
-            NavigationDestination(
-              icon: Icon(_features[i].icon),
-              label: context.tr(_features[i].titleKey),
-            ),
-        ],
+    // Devices are provided shell-wide (not inside My Devices) so the dashboard
+    // can surface the user's controls without a second fetch.
+    return BlocProvider(
+      create: (ctx) =>
+          DevicesCubit(DevicesRepository(ctx.read<ApiClient>()))..load(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(context.tr(feature.titleKey)),
+          actions: const [_CreditsBadge(), SizedBox(width: 8)],
+        ),
+        drawer: _AppDrawer(
+          features: _features,
+          selected: _index,
+          onSelect: (i) {
+            Navigator.of(context).pop();
+            _select(i);
+          },
+        ),
+        body: IndexedStack(
+          index: _index,
+          children: [for (final f in _features) Builder(builder: f.builder)],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: selectedBottom < 0 ? 0 : selectedBottom,
+          onDestinationSelected: (i) => _select(primaryIdx[i]),
+          destinations: [
+            for (final i in primaryIdx)
+              NavigationDestination(
+                icon: Icon(_features[i].icon),
+                label: context.tr(_features[i].titleKey),
+              ),
+          ],
+        ),
       ),
     );
   }

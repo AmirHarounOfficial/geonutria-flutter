@@ -80,17 +80,26 @@ class _WeatherChartState extends State<WeatherChart> {
               ? const Center(child: Text('No data'))
               : LineChart(
                   LineChartData(
-                    gridData: const FlGridData(show: true, drawVerticalLine: false),
+                    gridData: const FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                    ),
                     titlesData: FlTitlesData(
                       topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                       rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                       leftTitles: const AxisTitles(
-                          sideTitles:
-                              SideTitles(showTitles: true, reservedSize: 40)),
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                        ),
+                      ),
                       bottomTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                     ),
                     borderData: FlBorderData(show: false),
                     lineBarsData: [

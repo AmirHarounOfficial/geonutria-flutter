@@ -52,16 +52,16 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
 
   void _run() {
     context.read<ManualDiagnosisCubit>().run(
-          moisture: _v('moisture'),
-          soilTemp: _v('soilTemp'),
-          ambientTemp: _v('ambientTemp'),
-          humidity: _v('humidity'),
-          ph: _v('ph'),
-          nitrogen: _v('nitrogen'),
-          phosphorus: _v('phosphorus'),
-          potassium: _v('potassium'),
-          ec: _v('ec'),
-        );
+      moisture: _v('moisture'),
+      soilTemp: _v('soilTemp'),
+      ambientTemp: _v('ambientTemp'),
+      humidity: _v('humidity'),
+      ph: _v('ph'),
+      nitrogen: _v('nitrogen'),
+      phosphorus: _v('phosphorus'),
+      potassium: _v('potassium'),
+      ec: _v('ec'),
+    );
   }
 
   @override
@@ -85,8 +85,9 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
             for (final entry in _fields.entries)
               TextField(
                 controller: entry.value,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(labelText: _labels[entry.key]),
               ),
           ],
@@ -111,7 +112,10 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Icon(Icons.biotech),
                   label: Text('${context.tr('run_diagnosis')}  ·  5 ⚡'),
                 ),

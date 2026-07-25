@@ -66,17 +66,26 @@ class _HistoryChartState extends State<HistoryChart> {
               ? const Center(child: Text('No values for this metric'))
               : LineChart(
                   LineChartData(
-                    gridData: const FlGridData(show: true, drawVerticalLine: false),
+                    gridData: const FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                    ),
                     titlesData: FlTitlesData(
                       topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                       rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                       leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                        ),
                       ),
                       bottomTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                     ),
                     borderData: FlBorderData(show: false),
                     lineBarsData: [
@@ -88,10 +97,9 @@ class _HistoryChartState extends State<HistoryChart> {
                         dotData: const FlDotData(show: false),
                         belowBarData: BarAreaData(
                           show: true,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.12),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.12),
                         ),
                       ),
                     ],

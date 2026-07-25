@@ -26,13 +26,12 @@ class WeatherState extends Equatable {
     String? interval,
     List<WeatherPoint>? points,
     String? error,
-  }) =>
-      WeatherState(
-        state: state ?? this.state,
-        interval: interval ?? this.interval,
-        points: points ?? this.points,
-        error: error,
-      );
+  }) => WeatherState(
+    state: state ?? this.state,
+    interval: interval ?? this.interval,
+    points: points ?? this.points,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [state, interval, points, error];

@@ -40,8 +40,10 @@ class DiagnosisCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -78,7 +80,10 @@ class _ProbRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          SizedBox(width: 90, child: Text(label, style: const TextStyle(fontSize: 13))),
+          SizedBox(
+            width: 90,
+            child: Text(label, style: const TextStyle(fontSize: 13)),
+          ),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -86,17 +91,20 @@ class _ProbRow extends StatelessWidget {
                 value: value.clamp(0.0, 1.0),
                 minHeight: 8,
                 color: color,
-                backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
               ),
             ),
           ),
           const SizedBox(width: 8),
           SizedBox(
             width: 44,
-            child: Text('${(value * 100).toStringAsFixed(0)}%',
-                textAlign: TextAlign.end,
-                style: const TextStyle(fontSize: 13)),
+            child: Text(
+              '${(value * 100).toStringAsFixed(0)}%',
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontSize: 13),
+            ),
           ),
         ],
       ),
