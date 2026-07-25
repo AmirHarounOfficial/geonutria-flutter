@@ -224,11 +224,23 @@ class _ControlEditorState extends State<_ControlEditor> {
   late final _min = TextEditingController(text: '${_existing?.min ?? 0}');
   late final _max = TextEditingController(text: '${_existing?.max ?? 100}');
   late final _unit = TextEditingController(text: _existing?.unit ?? '');
+  late final _stateTopic = TextEditingController(
+    text: _existing?.stateTopic ?? '',
+  );
   late String _type = _existing?.type ?? 'switch';
 
   @override
   void dispose() {
-    for (final c in [_label, _topic, _on, _off, _min, _max, _unit]) {
+    for (final c in [
+      _label,
+      _topic,
+      _on,
+      _off,
+      _min,
+      _max,
+      _unit,
+      _stateTopic,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -245,6 +257,9 @@ class _ControlEditorState extends State<_ControlEditor> {
       min: double.tryParse(_min.text) ?? 0,
       max: double.tryParse(_max.text) ?? 100,
       unit: _unit.text.trim().isEmpty ? null : _unit.text.trim(),
+      stateTopic: _stateTopic.text.trim().isEmpty
+          ? null
+          : _stateTopic.text.trim(),
     );
     final controls = [...widget.device.controls];
     if (widget.index != null) {
@@ -282,7 +297,18 @@ class _ControlEditorState extends State<_ControlEditor> {
             const SizedBox(height: 8),
             TextField(
               controller: _topic,
-              decoration: const InputDecoration(labelText: 'Topic'),
+              decoration: const InputDecoration(
+                labelText: 'Command topic',
+                helperText: 'Topic the device listens on',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _stateTopic,
+              decoration: const InputDecoration(
+                labelText: 'State topic (optional)',
+                helperText: 'Topic the device reports its actual state on',
+              ),
             ),
             const SizedBox(height: 8),
             SegmentedButton<String>(

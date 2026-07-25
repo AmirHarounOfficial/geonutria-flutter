@@ -12,10 +12,11 @@ class ControlEndpoint extends Equatable {
     this.min = 0,
     this.max = 100,
     this.unit,
+    this.stateTopic,
   });
 
   final String label;
-  final String topic;
+  final String topic; // published to (command)
   final String type; // 'switch' | 'value'
   final String onPayload;
   final String offPayload;
@@ -23,7 +24,31 @@ class ControlEndpoint extends Equatable {
   final double max;
   final String? unit;
 
+  /// Topic the device publishes its actual state on. When set, the UI shows
+  /// the reported state instead of assuming the last command took effect.
+  final String? stateTopic;
+
   bool get isSwitch => type == 'switch';
+
+  bool get hasStateFeedback => stateTopic != null && stateTopic!.isNotEmpty;
+
+  /// Interprets a raw payload from [stateTopic] as on/off.
+  ///
+  /// Matches [onPayload]/[offPayload] first, then falls back to common
+  /// truthy spellings so a device reporting "ON" or "true" still resolves
+  /// when the command payload is "1".
+  bool? parseOnState(String? raw) {
+    if (raw == null) return null;
+    final v = raw.trim().toLowerCase();
+    if (v.isEmpty) return null;
+    if (v == onPayload.trim().toLowerCase()) return true;
+    if (v == offPayload.trim().toLowerCase()) return false;
+    if (['1', 'on', 'true', 'open', 'yes'].contains(v)) return true;
+    if (['0', 'off', 'false', 'closed', 'no'].contains(v)) return false;
+    final n = double.tryParse(v);
+    if (n != null) return n != 0;
+    return null;
+  }
 
   factory ControlEndpoint.fromJson(Map<String, dynamic> j) => ControlEndpoint(
     label: (j['label'] ?? j['topic'] ?? '').toString(),
@@ -34,6 +59,7 @@ class ControlEndpoint extends Equatable {
     min: (j['min'] as num?)?.toDouble() ?? 0,
     max: (j['max'] as num?)?.toDouble() ?? 100,
     unit: j['unit']?.toString(),
+    stateTopic: j['state_topic']?.toString(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +71,7 @@ class ControlEndpoint extends Equatable {
     'min': min,
     'max': max,
     if (unit != null) 'unit': unit,
+    if (stateTopic != null) 'state_topic': stateTopic,
   };
 
   ControlEndpoint copyWith({
@@ -56,6 +83,7 @@ class ControlEndpoint extends Equatable {
     double? min,
     double? max,
     String? unit,
+    String? stateTopic,
   }) => ControlEndpoint(
     label: label ?? this.label,
     topic: topic ?? this.topic,
@@ -65,6 +93,7 @@ class ControlEndpoint extends Equatable {
     min: min ?? this.min,
     max: max ?? this.max,
     unit: unit ?? this.unit,
+    stateTopic: stateTopic ?? this.stateTopic,
   );
 
   @override
@@ -77,6 +106,7 @@ class ControlEndpoint extends Equatable {
     min,
     max,
     unit,
+    stateTopic,
   ];
 }
 

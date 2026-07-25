@@ -76,6 +76,17 @@ class DevicesRepository {
     );
   }
 
+  /// Last-known payload for each control state topic, keyed by topic.
+  /// Topics the device has never published on are absent.
+  Future<Map<String, String>> controlStates() async {
+    final data = await _api.get('/my-devices/states', query: _api.authQuery());
+    final states = (data is Map) ? data['states'] : null;
+    if (states is Map) {
+      return {for (final e in states.entries) '${e.key}': '${e.value}'};
+    }
+    return {};
+  }
+
   Future<void> unbind(int deviceId) async {
     await _api.delete('/my-devices/$deviceId', query: _api.authQuery());
   }
