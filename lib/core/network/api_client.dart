@@ -14,8 +14,8 @@ import 'paywall_notifier.dart';
 /// `user_id` as the auth credential rather than a bearer token).
 class ApiClient {
   ApiClient(this._session, {PaywallNotifier? paywall})
-      : _paywall = paywall,
-        _dio = Dio(_options) {
+    : _paywall = paywall,
+      _dio = Dio(_options) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onError: (e, handler) {
@@ -36,12 +36,14 @@ class ApiClient {
       ),
     );
     if (kDebugMode) {
-      _dio.interceptors.add(LogInterceptor(
-        requestBody: false,
-        responseBody: false,
-        requestHeader: false,
-        responseHeader: false,
-      ));
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: false,
+          responseBody: false,
+          requestHeader: false,
+          responseHeader: false,
+        ),
+      );
     }
   }
 
@@ -61,16 +63,10 @@ class ApiClient {
   /// Merge the current `user_id` into a query map (the backend's auth scheme).
   Map<String, dynamic> authQuery([Map<String, dynamic>? extra]) {
     final uid = _session.userId;
-    return {
-      'user_id': ?uid,
-      ...?extra,
-    };
+    return {'user_id': ?uid, ...?extra};
   }
 
-  Future<dynamic> get(
-    String path, {
-    Map<String, dynamic>? query,
-  }) async {
+  Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
     return _wrap(() async {
       final res = await _dio.get(path, queryParameters: query);
       return res.data;
@@ -95,6 +91,17 @@ class ApiClient {
   }) async {
     return _wrap(() async {
       final res = await _dio.put(path, data: body, queryParameters: query);
+      return res.data;
+    });
+  }
+
+  Future<dynamic> patch(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+  }) async {
+    return _wrap(() async {
+      final res = await _dio.patch(path, data: body, queryParameters: query);
       return res.data;
     });
   }
@@ -196,7 +203,8 @@ class ApiClient {
         throw const NetworkException();
       }
       final code = e.response?.statusCode;
-      final msg = _extractMessage(e.response?.data) ??
+      final msg =
+          _extractMessage(e.response?.data) ??
           'Request failed${code != null ? ' ($code)' : ''}';
       throw AppException(msg, statusCode: code);
     }

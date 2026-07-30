@@ -15,6 +15,7 @@ import '../data/iot_repository.dart';
 import 'sensor_meta.dart';
 import 'widgets/diagnosis_card.dart';
 import 'widgets/history_chart.dart';
+import 'widgets/automations_card.dart';
 import 'widgets/manual_entry_form.dart';
 import 'widgets/quick_controls_card.dart';
 import 'widgets/sensor_card.dart';
@@ -167,6 +168,7 @@ class _LiveTab extends StatelessWidget {
           _MqttBadge(status: iot.mqttStatus, live: iot.hasLiveData),
           const SizedBox(height: 12),
           QuickControlsCard(preferredDeviceId: state.selectedId),
+          const AutomationsCard(),
           DiagnosisCard(diagnosis: iot.diagnosis),
           const SizedBox(height: 16),
           if (!iot.hasLiveData)

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/error/app_exception.dart';
 import '../../dashboard/bloc/history_cubit.dart' show LoadState;
+import '../data/automation_models.dart';
 import '../data/device_models.dart';
 import '../data/devices_repository.dart';
 
@@ -13,6 +14,7 @@ class DevicesState extends Equatable {
     this.state = LoadState.initial,
     this.devices = const [],
     this.controlStates = const {},
+    this.automations = const [],
     this.error,
   });
 
@@ -22,22 +24,33 @@ class DevicesState extends Equatable {
   /// Last payload reported on each control's state topic, keyed by topic.
   final Map<String, String> controlStates;
 
+  /// The user's automation rules.
+  final List<AutomationRule> automations;
+
   final String? error;
 
   DevicesState copyWith({
     LoadState? state,
     List<MyDevice>? devices,
     Map<String, String>? controlStates,
+    List<AutomationRule>? automations,
     String? error,
   }) => DevicesState(
     state: state ?? this.state,
     devices: devices ?? this.devices,
     controlStates: controlStates ?? this.controlStates,
+    automations: automations ?? this.automations,
     error: error,
   );
 
   @override
-  List<Object?> get props => [state, devices, controlStates, error];
+  List<Object?> get props => [
+    state,
+    devices,
+    controlStates,
+    automations,
+    error,
+  ];
 }
 
 class DevicesCubit extends Cubit<DevicesState> {
@@ -57,6 +70,7 @@ class DevicesCubit extends Cubit<DevicesState> {
       final devices = await _repo.list();
       emit(state.copyWith(state: LoadState.loaded, devices: devices));
       _syncStatePolling();
+      await loadAutomations();
     } on AppException catch (e) {
       emit(state.copyWith(state: LoadState.error, error: e.message));
     }
@@ -93,6 +107,60 @@ class DevicesCubit extends Cubit<DevicesState> {
   Future<void> close() {
     _statePoll?.cancel();
     return super.close();
+  }
+
+  // ── Automations ────────────────────────────────────────────────────────
+  Future<void> loadAutomations() async {
+    try {
+      final rules = await _repo.automations();
+      emit(state.copyWith(automations: rules));
+    } on AppException catch (e) {
+      emit(state.copyWith(error: e.message));
+    }
+  }
+
+  /// Creates or updates a rule depending on whether [rule] has an id.
+  /// Returns false and surfaces the message if the backend rejects it.
+  Future<bool> saveAutomation(AutomationRule rule) async {
+    try {
+      if (rule.id == null) {
+        await _repo.createAutomation(rule);
+      } else {
+        await _repo.updateAutomation(rule.id!, rule);
+      }
+      await loadAutomations();
+      return true;
+    } on AppException catch (e) {
+      emit(state.copyWith(error: e.message));
+      return false;
+    }
+  }
+
+  Future<void> setAutomationEnabled(int id, bool enabled) async {
+    // Reflect the toggle straight away, then reconcile with the server.
+    emit(
+      state.copyWith(
+        automations: [
+          for (final a in state.automations)
+            if (a.id == id) a.copyWith(enabled: enabled) else a,
+        ],
+      ),
+    );
+    try {
+      await _repo.setAutomationEnabled(id, enabled);
+    } on AppException catch (e) {
+      emit(state.copyWith(error: e.message));
+      await loadAutomations();
+    }
+  }
+
+  Future<void> deleteAutomation(int id) async {
+    try {
+      await _repo.deleteAutomation(id);
+      await loadAutomations();
+    } on AppException catch (e) {
+      emit(state.copyWith(error: e.message));
+    }
   }
 
   Future<bool> bind({

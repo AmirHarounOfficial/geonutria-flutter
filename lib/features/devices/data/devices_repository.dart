@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
+import 'automation_models.dart';
 import 'device_models.dart';
 
 /// Talks to the backend `/my-devices` router. Auth is the `user_id` credential
@@ -89,6 +90,46 @@ class DevicesRepository {
 
   Future<void> unbind(int deviceId) async {
     await _api.delete('/my-devices/$deviceId', query: _api.authQuery());
+  }
+
+  // ── Automations ────────────────────────────────────────────────────────
+  Future<List<AutomationRule>> automations() async {
+    final data = await _api.get(
+      '/my-devices/automations',
+      query: _api.authQuery(),
+    );
+    if (data is List) {
+      return data
+          .whereType<Map>()
+          .map((e) => AutomationRule.fromJson(e.cast<String, dynamic>()))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<void> createAutomation(AutomationRule rule) async {
+    await _api.post(
+      '/my-devices/automations',
+      body: {'user_id': _uid, ...rule.toJson()},
+    );
+  }
+
+  Future<void> updateAutomation(int id, AutomationRule rule) async {
+    await _api.put(
+      '/my-devices/automations/$id',
+      body: {'user_id': _uid, ...rule.toJson()},
+    );
+  }
+
+  Future<void> setAutomationEnabled(int id, bool enabled) async {
+    await _api.patch(
+      '/my-devices/automations/$id/enabled',
+      body: {'user_id': _uid, 'enabled': enabled},
+    );
+  }
+
+  Future<void> deleteAutomation(int id) async {
+    await _api.delete('/my-devices/automations/$id', query: _api.authQuery());
   }
 
   /// Publish a control command to one of the device's registered topics.

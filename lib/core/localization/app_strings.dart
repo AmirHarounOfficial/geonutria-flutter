@@ -6,10 +6,7 @@
 class AppStrings {
   AppStrings._();
 
-  static const Map<String, Map<String, String>> values = {
-    'en': _en,
-    'ar': _ar,
-  };
+  static const Map<String, Map<String, String>> values = {'en': _en, 'ar': _ar};
 
   static const Map<String, String> _en = {
     // App / nav
@@ -24,6 +21,16 @@ class AppStrings {
     'nav_my_devices': 'My Devices',
     'quick_controls': 'Quick controls',
     'firmware_admin_only': 'Firmware updates are managed by administrators.',
+    'automations': 'Automations',
+    'add_rule': 'Add rule',
+    'edit_rule': 'Edit rule',
+    'automations_empty':
+        'No rules yet. Automate a control by time of day or a sensor level.',
+    'when': 'When',
+    'then': 'Then',
+    'at_a_time': 'At a time',
+    'sensor_level': 'Sensor level',
+    'automation_server_time_note': 'Times follow the server clock.',
     'nav_profile': 'Profile',
     'nav_billing': 'Billing',
     'nav_report': 'Report',
@@ -126,6 +133,16 @@ class AppStrings {
     'nav_my_devices': 'أجهزتي',
     'quick_controls': 'تحكم سريع',
     'firmware_admin_only': 'تحديثات البرنامج الثابت يديرها المسؤولون.',
+    'automations': 'الأتمتة',
+    'add_rule': 'إضافة قاعدة',
+    'edit_rule': 'تعديل القاعدة',
+    'automations_empty':
+        'لا توجد قواعد بعد. يمكنك التحكم تلقائيًا حسب الوقت أو مستوى المستشعر.',
+    'when': 'متى',
+    'then': 'الإجراء',
+    'at_a_time': 'في وقت محدد',
+    'sensor_level': 'مستوى المستشعر',
+    'automation_server_time_note': 'المواعيد حسب ساعة الخادم.',
     'nav_profile': 'الملف الشخصي',
     'nav_billing': 'الفواتير',
     'nav_report': 'التقرير',
@@ -174,7 +191,8 @@ class AppStrings {
     'login_failed': 'فشل تسجيل الدخول. تحقق من بياناتك.',
 
     'paywall_title': 'نفد رصيد الذكاء الاصطناعي',
-    'paywall_body': 'تحتاج إلى مزيد من الرصيد لاستخدام هذه الميزة. أعد الشحن للمتابعة.',
+    'paywall_body':
+        'تحتاج إلى مزيد من الرصيد لاستخدام هذه الميزة. أعد الشحن للمتابعة.',
     'top_up': 'إعادة الشحن',
     'insufficient_credits': 'رصيد الذكاء الاصطناعي غير كافٍ',
 
