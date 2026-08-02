@@ -72,6 +72,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Export compliance: the app uses only standard HTTPS/TLS for network
+	     traffic, which is exempt under the encryption export regulations.
+	     Declaring this here stops App Store Connect asking on every upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- Google Sign-In (iOS) -->
 	<key>GIDClientID</key>
 	<string>934884489582-72ctomo87j7a1lf0gqdkqvs9u83j2k83.apps.googleusercontent.com</string>
