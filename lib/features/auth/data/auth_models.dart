@@ -20,13 +20,13 @@ class LoginResult extends Equatable {
   final String? locale;
 
   factory LoginResult.fromJson(Map<String, dynamic> j) => LoginResult(
-        token: '${j['token'] ?? ''}',
-        userId: (j['user_id'] as num).toInt(),
-        aiCredits: (j['ai_credits'] as num?)?.toInt() ?? 0,
-        teamCredits: (j['team_credits'] as num?)?.toInt() ?? 0,
-        role: j['role'] as String?,
-        locale: j['locale'] as String?,
-      );
+    token: '${j['token'] ?? ''}',
+    userId: (j['user_id'] as num).toInt(),
+    aiCredits: (j['ai_credits'] as num?)?.toInt() ?? 0,
+    teamCredits: (j['team_credits'] as num?)?.toInt() ?? 0,
+    role: j['role'] as String?,
+    locale: j['locale'] as String?,
+  );
 
   @override
   List<Object?> get props => [token, userId, aiCredits, teamCredits, role];
@@ -52,13 +52,13 @@ class GoogleOnboarding extends Equatable {
   final String? locale;
 
   factory GoogleOnboarding.fromJson(Map<String, dynamic> j) => GoogleOnboarding(
-        email: '${j['email'] ?? ''}',
-        givenName: '${j['given_name'] ?? ''}',
-        familyName: '${j['family_name'] ?? ''}',
-        picture: '${j['picture'] ?? ''}',
-        googleToken: '${j['google_token'] ?? ''}',
-        locale: j['locale'] as String?,
-      );
+    email: '${j['email'] ?? ''}',
+    givenName: '${j['given_name'] ?? ''}',
+    familyName: '${j['family_name'] ?? ''}',
+    picture: '${j['picture'] ?? ''}',
+    googleToken: '${j['google_token'] ?? ''}',
+    locale: j['locale'] as String?,
+  );
 
   @override
   List<Object?> get props => [email, googleToken];

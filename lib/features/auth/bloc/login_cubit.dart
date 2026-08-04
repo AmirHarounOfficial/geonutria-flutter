@@ -33,13 +33,12 @@ class LoginState extends Equatable {
     LoginResult? result,
     GoogleOnboarding? googleOnboarding,
     String? error,
-  }) =>
-      LoginState(
-        status: status ?? this.status,
-        result: result ?? this.result,
-        googleOnboarding: googleOnboarding ?? this.googleOnboarding,
-        error: error,
-      );
+  }) => LoginState(
+    status: status ?? this.status,
+    result: result ?? this.result,
+    googleOnboarding: googleOnboarding ?? this.googleOnboarding,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [status, result, googleOnboarding, error];
@@ -59,10 +58,12 @@ class LoginCubit extends Cubit<LoginState> {
     } on AppException catch (e) {
       emit(state.copyWith(status: LoginStatus.failure, error: e.message));
     } catch (_) {
-      emit(state.copyWith(
-        status: LoginStatus.failure,
-        error: 'Login failed. Please try again.',
-      ));
+      emit(
+        state.copyWith(
+          status: LoginStatus.failure,
+          error: 'Login failed. Please try again.',
+        ),
+      );
     }
   }
 
@@ -76,23 +77,26 @@ class LoginCubit extends Cubit<LoginState> {
       }
       final outcome = await _repo.googleLogin(accessToken);
       if (outcome.requiresOnboarding) {
-        emit(state.copyWith(
-          status: LoginStatus.googleNeedsOnboarding,
-          googleOnboarding: outcome.onboarding,
-        ));
+        emit(
+          state.copyWith(
+            status: LoginStatus.googleNeedsOnboarding,
+            googleOnboarding: outcome.onboarding,
+          ),
+        );
       } else {
-        emit(state.copyWith(
-          status: LoginStatus.success,
-          result: outcome.login,
-        ));
+        emit(
+          state.copyWith(status: LoginStatus.success, result: outcome.login),
+        );
       }
     } on AppException catch (e) {
       emit(state.copyWith(status: LoginStatus.failure, error: e.message));
     } catch (_) {
-      emit(state.copyWith(
-        status: LoginStatus.failure,
-        error: 'Google sign-in failed.',
-      ));
+      emit(
+        state.copyWith(
+          status: LoginStatus.failure,
+          error: 'Google sign-in failed.',
+        ),
+      );
     }
   }
 }

@@ -56,7 +56,16 @@ class HistoryCubit extends Cubit<HistoryState> {
 
   Future<void> load(int deviceId, {String? interval}) async {
     final iv = interval ?? state.interval;
-    emit(state.copyWith(state: LoadState.loading, interval: iv, error: null));
+    // Drop the previous series immediately. Keeping it would show one device's
+    // readings under another device's name while the new query is in flight.
+    emit(
+      state.copyWith(
+        state: LoadState.loading,
+        interval: iv,
+        points: const [],
+        error: null,
+      ),
+    );
     try {
       final pts = await _repo.getHistory(
         deviceId,

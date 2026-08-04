@@ -26,6 +26,9 @@ class AppStrings {
     'edit_rule': 'Edit rule',
     'automations_empty':
         'No rules yet. Automate a control by time of day or a sensor level.',
+    'automations_unavailable':
+        'Automations are unavailable right now. Your devices and controls are '
+        'unaffected.',
     'when': 'When',
     'then': 'Then',
     'at_a_time': 'At a time',
@@ -138,6 +141,8 @@ class AppStrings {
     'edit_rule': 'تعديل القاعدة',
     'automations_empty':
         'لا توجد قواعد بعد. يمكنك التحكم تلقائيًا حسب الوقت أو مستوى المستشعر.',
+    'automations_unavailable':
+        'خدمة الأتمتة غير متاحة حاليًا. أجهزتك ووسائل التحكم لم تتأثر.',
     'when': 'متى',
     'then': 'الإجراء',
     'at_a_time': 'في وقت محدد',

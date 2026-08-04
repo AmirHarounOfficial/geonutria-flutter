@@ -33,19 +33,24 @@ class AuthState extends Equatable {
     int? aiCredits,
     int? teamCredits,
     String? picture,
-  }) =>
-      AuthState(
-        status: status ?? this.status,
-        userId: userId ?? this.userId,
-        role: role ?? this.role,
-        aiCredits: aiCredits ?? this.aiCredits,
-        teamCredits: teamCredits ?? this.teamCredits,
-        picture: picture ?? this.picture,
-      );
+  }) => AuthState(
+    status: status ?? this.status,
+    userId: userId ?? this.userId,
+    role: role ?? this.role,
+    aiCredits: aiCredits ?? this.aiCredits,
+    teamCredits: teamCredits ?? this.teamCredits,
+    picture: picture ?? this.picture,
+  );
 
   @override
-  List<Object?> get props =>
-      [status, userId, role, aiCredits, teamCredits, picture];
+  List<Object?> get props => [
+    status,
+    userId,
+    role,
+    aiCredits,
+    teamCredits,
+    picture,
+  ];
 }
 
 /// Holds the global session + live credit balances. Mirrors the web app's
@@ -76,11 +81,13 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (_) {
       role = null;
     }
-    emit(state.copyWith(
-      status: AuthStatus.authenticated,
-      userId: _session.userId,
-      role: role,
-    ));
+    emit(
+      state.copyWith(
+        status: AuthStatus.authenticated,
+        userId: _session.userId,
+        role: role,
+      ),
+    );
     await refreshCredits();
   }
 
@@ -90,32 +97,44 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   void onAuthenticated(LoginResult r) {
-    emit(state.copyWith(
-      status: AuthStatus.authenticated,
-      userId: r.userId,
-      role: r.role,
-      aiCredits: r.aiCredits,
-      teamCredits: r.teamCredits,
-    ));
+    emit(
+      state.copyWith(
+        status: AuthStatus.authenticated,
+        userId: r.userId,
+        role: r.role,
+        aiCredits: r.aiCredits,
+        teamCredits: r.teamCredits,
+      ),
+    );
   }
 
   Future<void> refreshCredits() async {
     try {
       final me = await _repo.me();
-      emit(state.copyWith(
-        aiCredits: me.aiCredits,
-        teamCredits: me.teamCredits,
-        picture: me.picture,
-      ));
+      emit(
+        state.copyWith(
+          aiCredits: me.aiCredits,
+          teamCredits: me.teamCredits,
+          picture: me.picture,
+        ),
+      );
     } catch (_) {
       // Non-fatal; keep last known balances.
     }
   }
 
   /// Optimistically decrement after a paid feature succeeds (web parity).
+  /// Reflects a spend immediately, then reconciles with the server.
+  ///
+  /// [amount] is only a local guess for instant feedback — the server owns the
+  /// real price. An administrator can change a feature's cost per account or
+  /// mark it unlimited, in which case nothing was actually charged. Without the
+  /// reconciliation the badge and the billing view would show different numbers
+  /// for the same balance.
   void onCreditsSpent([int amount = 5]) {
     final next = (state.aiCredits - amount).clamp(0, 1 << 31);
     emit(state.copyWith(aiCredits: next));
+    refreshCredits();
   }
 
   Future<void> logout() async {

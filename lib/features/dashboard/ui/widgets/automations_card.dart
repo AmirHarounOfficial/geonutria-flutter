@@ -20,7 +20,9 @@ class AutomationsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<DevicesCubit, DevicesState>(
       buildWhen: (a, b) =>
-          a.automations != b.automations || a.devices != b.devices,
+          a.automations != b.automations ||
+          a.devices != b.devices ||
+          a.automationsAvailable != b.automationsAvailable,
       builder: (context, state) {
         final targets = state.devices
             .where((d) => d.controls.isNotEmpty)
@@ -28,6 +30,7 @@ class AutomationsCard extends StatelessWidget {
         if (targets.isEmpty) return const SizedBox.shrink();
 
         final rules = state.automations;
+        final available = state.automationsAvailable;
 
         return Card(
           child: Padding(
@@ -46,13 +49,38 @@ class AutomationsCard extends StatelessWidget {
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: () => _openEditor(context, targets, null),
+                      // Offering "Add rule" when the service is unreachable
+                      // would send the user through the whole builder only to
+                      // fail on Save.
+                      onPressed: available
+                          ? () => _openEditor(context, targets, null)
+                          : null,
                       icon: const Icon(Icons.add, size: 18),
                       label: Text(context.tr('add_rule')),
                     ),
                   ],
                 ),
-                if (rules.isEmpty)
+                if (!available)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            context.tr('automations_unavailable'),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (rules.isEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
                     child: Text(

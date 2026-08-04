@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart' show ChangeNotifierProvider;
 
 import 'app/app.dart';
 import 'core/network/api_client.dart';
@@ -38,7 +39,12 @@ Future<void> main() async {
       MultiRepositoryProvider(
         providers: [
           RepositoryProvider.value(value: session),
-          RepositoryProvider.value(value: paywall),
+          // PaywallNotifier is a ChangeNotifier. RepositoryProvider wraps
+          // Provider, which asserts against Listenables in debug builds — that
+          // assertion threw before runApp and left debug builds stuck on the
+          // splash screen. ChangeNotifierProvider.value is the right holder,
+          // and `.value` does not dispose the notifier we own here.
+          ChangeNotifierProvider.value(value: paywall),
           RepositoryProvider.value(value: api),
           RepositoryProvider.value(value: authRepo),
           RepositoryProvider.value(value: googleAuth),

@@ -6,6 +6,7 @@ import '../../../core/widgets/map_location_picker.dart';
 import '../../../core/widgets/status_views.dart';
 import '../../dashboard/bloc/history_cubit.dart' show LoadState;
 import '../bloc/devices_cubit.dart';
+import '../data/device_models.dart' show DeviceHealth;
 import 'device_detail_screen.dart';
 
 /// "My Devices" — list bound devices and bind new ones.
@@ -57,12 +58,18 @@ class _MyDevicesView extends StatelessWidget {
                               leading: const CircleAvatar(
                                 child: Icon(Icons.router),
                               ),
-                              title: Text(d.name),
+                              title: Row(
+                                children: [
+                                  Expanded(child: Text(d.name)),
+                                  _HealthChip(health: d.health),
+                                ],
+                              ),
                               subtitle: Text(
                                 [
                                   if (d.location != null &&
                                       d.location!.isNotEmpty)
                                     d.location,
+                                  'Last reading ${d.lastSeenLabel}',
                                   '${d.mqttTopics.length} topics · ${d.controls.length} controls',
                                   if (d.firmwareVersion != null)
                                     'fw ${d.firmwareVersion}',
@@ -104,6 +111,48 @@ class _MyDevicesView extends StatelessWidget {
       isScrollControlled: true,
       builder: (_) =>
           BlocProvider.value(value: cubit, child: const _BindSheet()),
+    );
+  }
+}
+
+/// Connectivity indicator for a device card.
+///
+/// Colour plus text, never colour alone — the distinction has to survive a
+/// colour-blind reader and a quick glance in sunlight.
+class _HealthChip extends StatelessWidget {
+  const _HealthChip({required this.health});
+  final DeviceHealth health;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (label, color) = switch (health) {
+      DeviceHealth.online => ('Online', Colors.green),
+      DeviceHealth.stale => ('Stale', Colors.orange),
+      DeviceHealth.offline => ('Offline', scheme.error),
+      DeviceHealth.never => ('No data', scheme.outline),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, size: 8, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

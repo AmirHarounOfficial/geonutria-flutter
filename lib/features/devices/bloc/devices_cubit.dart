@@ -15,6 +15,7 @@ class DevicesState extends Equatable {
     this.devices = const [],
     this.controlStates = const {},
     this.automations = const [],
+    this.automationsAvailable = true,
     this.error,
   });
 
@@ -27,6 +28,11 @@ class DevicesState extends Equatable {
   /// The user's automation rules.
   final List<AutomationRule> automations;
 
+  /// False when the automations endpoint could not be reached — the feature is
+  /// unavailable rather than empty, and the card says so instead of inviting
+  /// the user to create a rule that cannot be saved.
+  final bool automationsAvailable;
+
   final String? error;
 
   DevicesState copyWith({
@@ -34,12 +40,14 @@ class DevicesState extends Equatable {
     List<MyDevice>? devices,
     Map<String, String>? controlStates,
     List<AutomationRule>? automations,
+    bool? automationsAvailable,
     String? error,
   }) => DevicesState(
     state: state ?? this.state,
     devices: devices ?? this.devices,
     controlStates: controlStates ?? this.controlStates,
     automations: automations ?? this.automations,
+    automationsAvailable: automationsAvailable ?? this.automationsAvailable,
     error: error,
   );
 
@@ -49,6 +57,7 @@ class DevicesState extends Equatable {
     devices,
     controlStates,
     automations,
+    automationsAvailable,
     error,
   ];
 }
@@ -110,12 +119,26 @@ class DevicesCubit extends Cubit<DevicesState> {
   }
 
   // ── Automations ────────────────────────────────────────────────────────
+  /// Loads the rules. Deliberately does NOT write into [DevicesState.error]:
+  /// this runs as a follow-up to `load()`, so surfacing its failure there
+  /// would make an unrelated success — binding a device, say — report the
+  /// automations error instead. Unavailability is tracked separately so the
+  /// UI can explain itself without pretending the whole screen failed.
   Future<void> loadAutomations() async {
     try {
       final rules = await _repo.automations();
-      emit(state.copyWith(automations: rules));
+      if (!isClosed) {
+        emit(state.copyWith(automations: rules, automationsAvailable: true));
+      }
     } on AppException catch (e) {
-      emit(state.copyWith(error: e.message));
+      if (!isClosed) {
+        emit(
+          state.copyWith(automations: const [], automationsAvailable: false),
+        );
+      }
+      // Surfaced in the Automations card, not as a global error banner.
+      // ignore: avoid_print
+      print('[devices] automations unavailable: ${e.message}');
     }
   }
 

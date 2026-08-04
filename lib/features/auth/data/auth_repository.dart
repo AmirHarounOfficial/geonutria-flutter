@@ -14,10 +14,10 @@ class AuthRepository {
 
   /// `POST /login` — `{ username, password }`.
   Future<LoginResult> login(String username, String password) async {
-    final data = await _api.post('/login', body: {
-      'username': username,
-      'password': bcryptSafePassword(password),
-    });
+    final data = await _api.post(
+      '/login',
+      body: {'username': username, 'password': bcryptSafePassword(password)},
+    );
     final map = _asMap(data);
     if (map['status'] != 'success') {
       throw AppException('${map['message'] ?? 'Login failed'}');
@@ -29,9 +29,10 @@ class AuthRepository {
 
   /// `POST /google-login` — `{ token }`. Either logs in or signals onboarding.
   Future<GoogleLoginOutcome> googleLogin(String googleAccessToken) async {
-    final data = await _api.post('/google-login', body: {
-      'token': googleAccessToken,
-    });
+    final data = await _api.post(
+      '/google-login',
+      body: {'token': googleAccessToken},
+    );
     final map = _asMap(data);
     if (map['status'] == 'requires_onboarding') {
       return GoogleLoginOutcome.needsOnboarding(GoogleOnboarding.fromJson(map));
@@ -46,10 +47,13 @@ class AuthRepository {
     required String googleToken,
     required RegistrationData data,
   }) async {
-    final res = await _api.post('/google-register', body: {
-      'google_token': googleToken,
-      ...data.toJson(includePassword: false),
-    });
+    final res = await _api.post(
+      '/google-register',
+      body: {
+        'google_token': googleToken,
+        ...data.toJson(includePassword: false),
+      },
+    );
     final map = _asMap(res);
     final result = LoginResult.fromJson(map);
     await _persist(result);
@@ -68,10 +72,10 @@ class AuthRepository {
 
   /// `POST /verify-otp` — `{ email, otp_code }`.
   Future<String> verifyOtp(String email, String otpCode) async {
-    final res = await _api.post('/verify-otp', body: {
-      'email': email,
-      'otp_code': otpCode,
-    });
+    final res = await _api.post(
+      '/verify-otp',
+      body: {'email': email, 'otp_code': otpCode},
+    );
     final map = _asMap(res);
     if (map['status'] != 'success') {
       throw AppException('${map['message'] ?? 'Verification failed'}');
@@ -150,16 +154,16 @@ class RegistrationData {
   final List<Map<String, dynamic>>? farms;
 
   Map<String, dynamic> toJson({bool includePassword = true}) => {
-        'first_name': firstName,
-        'last_name': lastName,
-        if (includePassword) 'email': email,
-        if (includePassword) 'password': bcryptSafePassword(password),
-        'phone_number': phoneNumber,
-        'address': address,
-        'entity_type': entityType,
-        if (companyName != null) 'company_name': companyName,
-        'age': age,
-        'gender': gender,
-        if (farms != null) 'farms': farms,
-      };
+    'first_name': firstName,
+    'last_name': lastName,
+    if (includePassword) 'email': email,
+    if (includePassword) 'password': bcryptSafePassword(password),
+    'phone_number': phoneNumber,
+    'address': address,
+    'entity_type': entityType,
+    if (companyName != null) 'company_name': companyName,
+    'age': age,
+    'gender': gender,
+    if (farms != null) 'farms': farms,
+  };
 }

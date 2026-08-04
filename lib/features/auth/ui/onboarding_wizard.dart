@@ -130,19 +130,21 @@ class _WizardViewState extends State<_WizardView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isGoogle ? 'Complete profile' : context.tr('create_account')),
+        title: Text(
+          _isGoogle ? 'Complete profile' : context.tr('create_account'),
+        ),
       ),
       body: BlocConsumer<RegisterCubit, RegisterState>(
         listener: (ctx, state) async {
           if (state.status == RegisterStatus.awaitingOtp && !_isGoogle) {
             // Move to OTP verification, sharing the same cubit.
             final cubit = ctx.read<RegisterCubit>();
-            await Navigator.of(ctx).push(MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: cubit,
-                child: const OtpScreen(),
+            await Navigator.of(ctx).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    BlocProvider.value(value: cubit, child: const OtpScreen()),
               ),
-            ));
+            );
           } else if (state.status == RegisterStatus.success &&
               state.result != null) {
             ctx.read<AuthCubit>().onAuthenticated(state.result!);
@@ -177,9 +179,11 @@ class _WizardViewState extends State<_WizardView> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: busy ? null : _back,
-                            child: Text(context.tr('cancel') == 'Cancel'
-                                ? 'Back'
-                                : 'رجوع'),
+                            child: Text(
+                              context.tr('cancel') == 'Cancel'
+                                  ? 'Back'
+                                  : 'رجوع',
+                            ),
                           ),
                         ),
                       if (_step > 0) const SizedBox(width: 12),
@@ -193,11 +197,11 @@ class _WizardViewState extends State<_WizardView> {
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
-                              : Text(_step < 2
-                                  ? 'Next'
-                                  : 'Complete setup'),
+                              : Text(_step < 2 ? 'Next' : 'Complete setup'),
                         ),
                       ),
                     ],
@@ -221,7 +225,9 @@ class _WizardViewState extends State<_WizardView> {
               Expanded(
                 child: TextFormField(
                   controller: _firstName,
-                  decoration: InputDecoration(labelText: context.tr('first_name')),
+                  decoration: InputDecoration(
+                    labelText: context.tr('first_name'),
+                  ),
                   validator: _required,
                 ),
               ),
@@ -229,7 +235,9 @@ class _WizardViewState extends State<_WizardView> {
               Expanded(
                 child: TextFormField(
                   controller: _lastName,
-                  decoration: InputDecoration(labelText: context.tr('last_name')),
+                  decoration: InputDecoration(
+                    labelText: context.tr('last_name'),
+                  ),
                   validator: _required,
                 ),
               ),
@@ -327,8 +335,10 @@ class _WizardViewState extends State<_WizardView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Farms & locations (optional)',
-            style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          'Farms & locations (optional)',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 12),
         for (var i = 0; i < _farms.length; i++)
           _FarmEditor(
@@ -409,8 +419,10 @@ class _FarmEditor extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text('Farm ${index + 1}',
-                      style: Theme.of(context).textTheme.titleSmall),
+                  child: Text(
+                    'Farm ${index + 1}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
                 if (canRemove)
                   IconButton(
@@ -454,8 +466,9 @@ class _FarmEditor extends StatelessWidget {
             for (var i = 0; i < farm.crops.length; i++)
               _CropEditor(
                 crop: farm.crops[i],
-                onRemove:
-                    farm.crops.length > 1 ? () => _removeCrop(i, context) : null,
+                onRemove: farm.crops.length > 1
+                    ? () => _removeCrop(i, context)
+                    : null,
                 onChanged: onChanged,
               ),
             TextButton.icon(
@@ -539,16 +552,18 @@ class _CropEditor extends StatelessWidget {
                         Expanded(
                           child: TextField(
                             controller: crop.trees[i].name,
-                            decoration:
-                                const InputDecoration(labelText: 'Tree name'),
+                            decoration: const InputDecoration(
+                              labelText: 'Tree name',
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextField(
                             controller: crop.trees[i].code,
-                            decoration:
-                                const InputDecoration(labelText: 'Code'),
+                            decoration: const InputDecoration(
+                              labelText: 'Code',
+                            ),
                           ),
                         ),
                         IconButton(
@@ -587,8 +602,7 @@ class _FarmDraft {
   Map<String, dynamic>? toJson() {
     final hasName = name.text.trim().isNotEmpty;
     if (!hasName && lat == null) return null; // skip empty farm
-    final crops = this
-        .crops
+    final crops = this.crops
         .where((c) => c.name.text.trim().isNotEmpty)
         .map((c) => c.toJson())
         .toList();
@@ -617,16 +631,16 @@ class _CropDraft {
   final List<_TreeDraft> trees = [];
 
   Map<String, dynamic> toJson() => {
-        'crop_name': name.text.trim(),
-        'planted_area': double.tryParse(area.text) ?? 0.0,
-        'is_tree': isTree,
-        'trees': isTree
-            ? trees
-                .where((t) => t.name.text.trim().isNotEmpty)
-                .map((t) => t.toJson())
-                .toList()
-            : <Map<String, dynamic>>[],
-      };
+    'crop_name': name.text.trim(),
+    'planted_area': double.tryParse(area.text) ?? 0.0,
+    'is_tree': isTree,
+    'trees': isTree
+        ? trees
+              .where((t) => t.name.text.trim().isNotEmpty)
+              .map((t) => t.toJson())
+              .toList()
+        : <Map<String, dynamic>>[],
+  };
 
   void dispose() {
     name.dispose();
@@ -642,9 +656,9 @@ class _TreeDraft {
   final code = TextEditingController();
 
   Map<String, dynamic> toJson() => {
-        'tree_name': name.text.trim(),
-        'tree_code': code.text.trim(),
-      };
+    'tree_name': name.text.trim(),
+    'tree_code': code.text.trim(),
+  };
 
   void dispose() {
     name.dispose();

@@ -7,12 +7,12 @@ import '../../../core/config/env.dart';
 /// Google profile. Returns null if the user cancels.
 class GoogleAuthService {
   GoogleAuthService()
-      : _googleSignIn = GoogleSignIn(
-          scopes: const ['email', 'profile'],
-          serverClientId: Env.googleServerClientId.isEmpty
-              ? null
-              : Env.googleServerClientId,
-        );
+    : _googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        serverClientId: Env.googleServerClientId.isEmpty
+            ? null
+            : Env.googleServerClientId,
+      );
 
   final GoogleSignIn _googleSignIn;
 

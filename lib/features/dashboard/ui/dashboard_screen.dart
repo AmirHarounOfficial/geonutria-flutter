@@ -127,10 +127,18 @@ class _DeviceSelector extends StatelessWidget {
           ),
           IconButton(
             tooltip: '${context.tr('refresh')} · 1 ⚡',
+            // Disabled while in flight so a second tap can't queue a
+            // duplicate (and a second charge).
             onPressed: state.statusLoading
                 ? null
                 : () => context.read<DashboardCubit>().refresh(),
-            icon: const Icon(Icons.sync),
+            icon: state.statusLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
           ),
         ],
       ),
@@ -165,7 +173,11 @@ class _LiveTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _MqttBadge(status: iot.mqttStatus, live: iot.hasLiveData),
+          _MqttBadge(
+            status: iot.mqttStatus,
+            live: iot.hasLiveData,
+            lastUpdated: state.lastUpdated,
+          ),
           const SizedBox(height: 12),
           QuickControlsCard(preferredDeviceId: state.selectedId),
           const AutomationsCard(),
@@ -229,9 +241,18 @@ class _LiveTab extends StatelessWidget {
 }
 
 class _MqttBadge extends StatelessWidget {
-  const _MqttBadge({required this.status, required this.live});
+  const _MqttBadge({
+    required this.status,
+    required this.live,
+    this.lastUpdated,
+  });
   final String status;
   final bool live;
+  final DateTime? lastUpdated;
+
+  static String _clock(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:'
+      '${t.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +262,14 @@ class _MqttBadge extends StatelessWidget {
       children: [
         Icon(Icons.circle, size: 12, color: color),
         const SizedBox(width: 8),
-        Text('MQTT: $status'),
+        Expanded(child: Text('MQTT: $status')),
+        if (lastUpdated != null)
+          Text(
+            'Updated ${_clock(lastUpdated!)}',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
       ],
     );
   }
@@ -269,6 +297,18 @@ class _HistoryTabState extends State<_HistoryTab>
   }
 
   @override
+  void didUpdateWidget(covariant _HistoryTab old) {
+    super.didUpdateWidget(old);
+    // The tab is kept alive across device changes, so initState does not run
+    // again. Without this the chart would keep showing the previous device's
+    // data until the user happened to change the interval.
+    if (old.deviceId != widget.deviceId) {
+      final cubit = context.read<HistoryCubit>();
+      cubit.load(widget.deviceId, interval: cubit.state.interval);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
     return BlocBuilder<HistoryCubit, HistoryState>(
@@ -291,7 +331,11 @@ class _HistoryTabState extends State<_HistoryTab>
               ],
             ),
             const SizedBox(height: 16),
-            if (state.state == LoadState.loading)
+            // `initial` means the first query hasn't run yet — it must read as
+            // loading, not as "no data", or an empty screen on entry looks
+            // like data loss.
+            if (state.state == LoadState.initial ||
+                state.state == LoadState.loading)
               const Padding(padding: EdgeInsets.all(40), child: LoadingView())
             else if (state.state == LoadState.error)
               ErrorView(
@@ -300,12 +344,75 @@ class _HistoryTabState extends State<_HistoryTab>
                     context.read<HistoryCubit>().load(widget.deviceId),
               )
             else if (state.points.isEmpty)
-              EmptyView(message: context.tr('no_data'))
+              _NoResults(
+                message:
+                    'No readings recorded for this device over '
+                    '"${state.interval}".',
+                hint: 'Try a longer range, or check the device is reporting.',
+                onRetry: () => context.read<HistoryCubit>().load(
+                  widget.deviceId,
+                  interval: state.interval,
+                ),
+              )
             else
               HistoryChart(points: state.points),
           ],
         );
       },
+    );
+  }
+}
+
+/// Empty state for a query that ran and legitimately returned nothing.
+///
+/// Kept distinct from loading and from errors: "no records matched" is a
+/// different situation from "still fetching" or "the request failed", and
+/// conflating them reads to users as data loss.
+class _NoResults extends StatelessWidget {
+  const _NoResults({
+    required this.message,
+    required this.hint,
+    required this.onRetry,
+  });
+
+  final String message;
+  final String hint;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
+      child: Column(
+        children: [
+          Icon(
+            Icons.query_stats,
+            size: 40,
+            color: theme.colorScheme.outlineVariant,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hint,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: Text(context.tr('retry')),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -332,6 +439,16 @@ class _WeatherTabState extends State<_WeatherTab>
   }
 
   @override
+  void didUpdateWidget(covariant _WeatherTab old) {
+    super.didUpdateWidget(old);
+    // See _HistoryTab: kept alive, so a device change needs an explicit reload.
+    if (old.deviceId != widget.deviceId) {
+      final cubit = context.read<WeatherCubit>();
+      cubit.load(widget.deviceId, interval: cubit.state.interval);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
     return BlocBuilder<WeatherCubit, WeatherState>(
@@ -354,7 +471,8 @@ class _WeatherTabState extends State<_WeatherTab>
               ],
             ),
             const SizedBox(height: 16),
-            if (state.state == LoadState.loading)
+            if (state.state == LoadState.initial ||
+                state.state == LoadState.loading)
               const Padding(padding: EdgeInsets.all(40), child: LoadingView())
             else if (state.state == LoadState.error)
               ErrorView(
@@ -363,7 +481,18 @@ class _WeatherTabState extends State<_WeatherTab>
                     context.read<WeatherCubit>().load(widget.deviceId),
               )
             else if (state.points.isEmpty)
-              EmptyView(message: context.tr('no_data'))
+              _NoResults(
+                message:
+                    'No weather recorded for this device over '
+                    '"${state.interval}".',
+                hint:
+                    'Weather is logged against the device location — set one '
+                    'in My Devices if this stays empty.',
+                onRetry: () => context.read<WeatherCubit>().load(
+                  widget.deviceId,
+                  interval: state.interval,
+                ),
+              )
             else
               WeatherChart(points: state.points),
           ],

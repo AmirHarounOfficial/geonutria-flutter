@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -53,7 +55,27 @@ class _DeviceControlTileState extends State<DeviceControlTile> {
   late double _value = widget.control.min;
   bool _busy = false;
 
+  /// How long to wait for the device to confirm before giving up on the
+  /// optimistic position. Without this the tile could sit on "sending…"
+  /// indefinitely, leaving the user unable to tell whether the command landed.
+  static const _confirmTimeout = Duration(seconds: 12);
+  Timer? _confirmTimer;
+
+  @override
+  void dispose() {
+    _confirmTimer?.cancel();
+    super.dispose();
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _publish(String payload) async {
+    _confirmTimer?.cancel();
     setState(() => _busy = true);
     try {
       await context.read<DevicesCubit>().publish(
@@ -61,14 +83,27 @@ class _DeviceControlTileState extends State<DeviceControlTile> {
         widget.control.topic,
         payload,
       );
+      if (!mounted) return;
+      if (widget.control.hasStateFeedback) {
+        // Command accepted by the broker, but the device hasn't confirmed yet.
+        // Start the clock: if no report arrives, say so rather than leaving
+        // the tile implying success.
+        _confirmTimer = Timer(_confirmTimeout, () {
+          if (!mounted || _optimisticOn == null) return;
+          setState(() => _optimisticOn = null);
+          _snack('${widget.control.label}: no confirmation from the device.');
+        });
+      } else {
+        // Nothing will ever report back, so the command being accepted is the
+        // only outcome there is — confirm it and stop pretending otherwise.
+        _snack('${widget.control.label} command sent.');
+      }
     } on AppException catch (e) {
       if (mounted) {
         // The command failed, so drop the optimistic position and fall back
         // to whatever the device last reported.
         setState(() => _optimisticOn = null);
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(e.message)));
+        _snack(e.message);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -89,6 +124,7 @@ class _DeviceControlTileState extends State<DeviceControlTile> {
           devicesState.controlStates[c.stateTopic],
         );
         if (_optimisticOn != null && reported == _optimisticOn) {
+          _confirmTimer?.cancel();
           setState(() => _optimisticOn = null);
         }
       },

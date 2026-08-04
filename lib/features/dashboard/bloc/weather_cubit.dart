@@ -45,7 +45,16 @@ class WeatherCubit extends Cubit<WeatherState> {
 
   Future<void> load(int deviceId, {String? interval}) async {
     final iv = interval ?? state.interval;
-    emit(state.copyWith(state: LoadState.loading, interval: iv, error: null));
+    // Clear the old series so one device's weather is never shown under
+    // another device's name while the new query is in flight.
+    emit(
+      state.copyWith(
+        state: LoadState.loading,
+        interval: iv,
+        points: const [],
+        error: null,
+      ),
+    );
     try {
       final pts = await _repo.getWeatherCharts(deviceId, interval: iv);
       emit(state.copyWith(state: LoadState.loaded, points: pts));

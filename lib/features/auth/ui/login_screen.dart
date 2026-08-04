@@ -18,10 +18,8 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (ctx) => LoginCubit(
-        ctx.read<AuthRepository>(),
-        ctx.read<GoogleAuthService>(),
-      ),
+      create: (ctx) =>
+          LoginCubit(ctx.read<AuthRepository>(), ctx.read<GoogleAuthService>()),
       child: const _LoginView(),
     );
   }
@@ -64,16 +62,21 @@ class _LoginViewState extends State<_LoginView> {
               ctx.read<AuthCubit>().onAuthenticated(state.result!);
             } else if (state.status == LoginStatus.googleNeedsOnboarding &&
                 state.googleOnboarding != null) {
-              Navigator.of(ctx).push(MaterialPageRoute(
-                builder: (_) =>
-                    OnboardingWizard(googleOnboarding: state.googleOnboarding),
-              ));
+              Navigator.of(ctx).push(
+                MaterialPageRoute(
+                  builder: (_) => OnboardingWizard(
+                    googleOnboarding: state.googleOnboarding,
+                  ),
+                ),
+              );
             } else if (state.status == LoginStatus.failure) {
               ScaffoldMessenger.of(ctx)
                 ..hideCurrentSnackBar()
-                ..showSnackBar(SnackBar(
-                  content: Text(state.error ?? ctx.tr('login_failed')),
-                ));
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text(state.error ?? ctx.tr('login_failed')),
+                  ),
+                );
             }
           },
           child: Center(
@@ -105,9 +108,7 @@ class _LoginViewState extends State<_LoginView> {
                       Text(
                         context.tr('app_name'),
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
+                        style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 32),
@@ -133,9 +134,11 @@ class _LoginViewState extends State<_LoginView> {
                           labelText: context.tr('password'),
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            icon: Icon(_obscure
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined),
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
                             onPressed: () =>
                                 setState(() => _obscure = !_obscure),
                           ),
@@ -168,8 +171,7 @@ class _LoginViewState extends State<_LoginView> {
                         children: [
                           const Expanded(child: Divider()),
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: Text(
                               'or',
                               style: Theme.of(context).textTheme.bodySmall,
@@ -192,7 +194,8 @@ class _LoginViewState extends State<_LoginView> {
                                     height: 18,
                                     width: 18,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.g_mobiledata, size: 28),
                             label: Text(context.tr('login_with_google')),
@@ -222,4 +225,3 @@ class _LoginViewState extends State<_LoginView> {
     );
   }
 }
-

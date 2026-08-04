@@ -110,6 +110,12 @@ class ControlEndpoint extends Equatable {
   ];
 }
 
+/// Freshness of a device's data, shown as a status indicator.
+///
+/// Colour alone would fail colour-blind users and anyone glancing quickly, so
+/// each value is always rendered with its label beside it.
+enum DeviceHealth { online, stale, offline, never }
+
 /// A device bound to the user via the My Devices feature.
 class MyDevice extends Equatable {
   const MyDevice({
@@ -123,6 +129,7 @@ class MyDevice extends Equatable {
     this.otaTopic,
     this.firmwareVersion,
     this.farmId,
+    this.lastReadingAt,
   });
 
   final int id;
@@ -136,7 +143,31 @@ class MyDevice extends Equatable {
   final String? firmwareVersion;
   final int? farmId;
 
+  /// When this device last stored a reading, or null if it never has.
+  final DateTime? lastReadingAt;
+
   bool get hasLocation => latitude != null && longitude != null;
+
+  /// How fresh the device's data is, for the status indicator in the list.
+  DeviceHealth get health {
+    final t = lastReadingAt;
+    if (t == null) return DeviceHealth.never;
+    final age = DateTime.now().difference(t);
+    if (age.inMinutes <= 15) return DeviceHealth.online;
+    if (age.inHours <= 24) return DeviceHealth.stale;
+    return DeviceHealth.offline;
+  }
+
+  /// Short human phrasing of [lastReadingAt] — "4 min ago", "3 days ago".
+  String get lastSeenLabel {
+    final t = lastReadingAt;
+    if (t == null) return 'never reported';
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'just now';
+    if (d.inMinutes < 60) return '${d.inMinutes} min ago';
+    if (d.inHours < 24) return '${d.inHours} h ago';
+    return '${d.inDays} d ago';
+  }
 
   factory MyDevice.fromJson(Map<String, dynamic> j) => MyDevice(
     id: (j['id'] as num).toInt(),
@@ -154,6 +185,7 @@ class MyDevice extends Equatable {
     otaTopic: j['ota_topic']?.toString(),
     firmwareVersion: j['firmware_version']?.toString(),
     farmId: (j['farm_id'] as num?)?.toInt(),
+    lastReadingAt: DateTime.tryParse(j['last_reading_at']?.toString() ?? ''),
   );
 
   static List<String> _stringList(dynamic v) {

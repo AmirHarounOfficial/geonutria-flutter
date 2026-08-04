@@ -5,7 +5,14 @@ import '../../../core/error/app_exception.dart';
 import '../data/auth_models.dart';
 import '../data/auth_repository.dart';
 
-enum RegisterStatus { idle, submitting, awaitingOtp, verifying, success, failure }
+enum RegisterStatus {
+  idle,
+  submitting,
+  awaitingOtp,
+  verifying,
+  success,
+  failure,
+}
 
 class RegisterState extends Equatable {
   const RegisterState({
@@ -31,19 +38,17 @@ class RegisterState extends Equatable {
     String? message,
     LoginResult? result,
     String? error,
-  }) =>
-      RegisterState(
-        status: status ?? this.status,
-        email: email ?? this.email,
-        password: password ?? this.password,
-        message: message,
-        result: result ?? this.result,
-        error: error,
-      );
+  }) => RegisterState(
+    status: status ?? this.status,
+    email: email ?? this.email,
+    password: password ?? this.password,
+    message: message,
+    result: result ?? this.result,
+    error: error,
+  );
 
   @override
-  List<Object?> get props =>
-      [status, email, password, message, result, error];
+  List<Object?> get props => [status, email, password, message, result, error];
 }
 
 /// Drives the standard registration (register -> OTP -> auto-login) and the
@@ -59,12 +64,14 @@ class RegisterCubit extends Cubit<RegisterState> {
     emit(state.copyWith(status: RegisterStatus.submitting, error: null));
     try {
       final msg = await _repo.register(data);
-      emit(state.copyWith(
-        status: RegisterStatus.awaitingOtp,
-        email: data.email,
-        password: data.password,
-        message: msg,
-      ));
+      emit(
+        state.copyWith(
+          status: RegisterStatus.awaitingOtp,
+          email: data.email,
+          password: data.password,
+          message: msg,
+        ),
+      );
     } on AppException catch (e) {
       emit(state.copyWith(status: RegisterStatus.failure, error: e.message));
     }
@@ -81,7 +88,9 @@ class RegisterCubit extends Cubit<RegisterState> {
       final result = await _repo.login(email, password);
       emit(state.copyWith(status: RegisterStatus.success, result: result));
     } on AppException catch (e) {
-      emit(state.copyWith(status: RegisterStatus.awaitingOtp, error: e.message));
+      emit(
+        state.copyWith(status: RegisterStatus.awaitingOtp, error: e.message),
+      );
     }
   }
 
@@ -89,8 +98,10 @@ class RegisterCubit extends Cubit<RegisterState> {
   Future<void> googleRegister(String googleToken, RegistrationData data) async {
     emit(state.copyWith(status: RegisterStatus.submitting, error: null));
     try {
-      final result =
-          await _repo.googleRegister(googleToken: googleToken, data: data);
+      final result = await _repo.googleRegister(
+        googleToken: googleToken,
+        data: data,
+      );
       emit(state.copyWith(status: RegisterStatus.success, result: result));
     } on AppException catch (e) {
       emit(state.copyWith(status: RegisterStatus.failure, error: e.message));

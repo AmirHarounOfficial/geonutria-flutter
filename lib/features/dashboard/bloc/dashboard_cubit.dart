@@ -15,6 +15,7 @@ class DashboardState extends Equatable {
     this.selectedId,
     this.iot,
     this.statusLoading = false,
+    this.lastUpdated,
     this.error,
   });
 
@@ -23,6 +24,12 @@ class DashboardState extends Equatable {
   final int? selectedId;
   final IotStatus? iot;
   final bool statusLoading;
+
+  /// When the displayed readings were last fetched. Shown to the user so a
+  /// refresh that returns identical numbers is still visibly an action that
+  /// happened, rather than one that appeared to do nothing.
+  final DateTime? lastUpdated;
+
   final String? error;
 
   Device? get selectedDevice {
@@ -38,6 +45,7 @@ class DashboardState extends Equatable {
     int? selectedId,
     IotStatus? iot,
     bool? statusLoading,
+    DateTime? lastUpdated,
     String? error,
     bool clearIot = false,
   }) => DashboardState(
@@ -46,6 +54,7 @@ class DashboardState extends Equatable {
     selectedId: selectedId ?? this.selectedId,
     iot: clearIot ? null : (iot ?? this.iot),
     statusLoading: statusLoading ?? this.statusLoading,
+    lastUpdated: lastUpdated ?? this.lastUpdated,
     error: error,
   );
 
@@ -56,6 +65,7 @@ class DashboardState extends Equatable {
     selectedId,
     iot,
     statusLoading,
+    lastUpdated,
     error,
   ];
 }
@@ -101,7 +111,13 @@ class DashboardCubit extends Cubit<DashboardState> {
     emit(state.copyWith(statusLoading: true, error: null));
     try {
       final iot = await _repo.getStatus(id);
-      emit(state.copyWith(statusLoading: false, iot: iot));
+      emit(
+        state.copyWith(
+          statusLoading: false,
+          iot: iot,
+          lastUpdated: DateTime.now(),
+        ),
+      );
       _auth.onCreditsSpent(5);
     } on InsufficientCreditsException {
       emit(state.copyWith(statusLoading: false)); // paywall handled globally
