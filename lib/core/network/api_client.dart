@@ -12,6 +12,19 @@ import 'paywall_notifier.dart';
 /// generic get/post/put/delete + multipart upload + PDF download, with the
 /// backend's quirks centralized here (402 -> [InsufficientCreditsException],
 /// `user_id` as the auth credential rather than a bearer token).
+/// A single streamed token, tagged with which channel it belongs to.
+class ChatToken {
+  const ChatToken._(this.text, this.isReasoning);
+  const ChatToken.content(String text) : this._(text, false);
+  const ChatToken.reasoning(String text) : this._(text, true);
+
+  final String text;
+
+  /// True when this is part of the model's chain of thought rather than the
+  /// answer the user asked for.
+  final bool isReasoning;
+}
+
 class ApiClient {
   ApiClient(this._session, {PaywallNotifier? paywall})
     : _paywall = paywall,
@@ -135,7 +148,12 @@ class ApiClient {
 
   /// POST that streams an OpenAI-style SSE response (`/v1/openrouter-chat`),
   /// yielding incremental `choices[0].delta.content` text tokens.
-  Stream<String> streamChatTokens(String path, {Object? body}) async* {
+  /// One token from the chat stream.
+  ///
+  /// The reasoning model emits its working separately from its answer, so the
+  /// two are kept apart rather than concatenated — otherwise the chain of
+  /// thought lands in the middle of the reply.
+  Stream<ChatToken> streamChatTokens(String path, {Object? body}) async* {
     final resp = await _dio.post(
       path,
       data: body,
@@ -165,8 +183,22 @@ class ApiClient {
         final choices = json['choices'];
         if (choices is List && choices.isNotEmpty) {
           final delta = (choices.first as Map)['delta'];
-          final content = delta is Map ? delta['content'] : null;
-          if (content is String && content.isNotEmpty) yield content;
+          if (delta is Map) {
+            final reasoning = delta['reasoning'];
+            if (reasoning is String && reasoning.isNotEmpty) {
+              yield ChatToken.reasoning(reasoning);
+            }
+            final content = delta['content'];
+            if (content is String && content.isNotEmpty) {
+              yield ChatToken.content(content);
+            }
+          }
+        } else {
+          // Some providers send a plain message instead of a delta.
+          final content = (json['message'] as Map?)?['content'];
+          if (content is String && content.isNotEmpty) {
+            yield ChatToken.content(content);
+          }
         }
       } on AppException {
         rethrow;
@@ -174,6 +206,27 @@ class ApiClient {
         // Ignore keep-alive / non-JSON lines.
       }
     }
+  }
+
+  /// Uploads an attachment for the AI chat and returns the multimodal content
+  /// block to embed in the message.
+  ///
+  /// Worth the round trip: the server compresses anything over 1 MB, and a
+  /// phone photo is routinely several megabytes. Encoding it locally would
+  /// push a base64 payload of that size through the request.
+  Future<Map<String, dynamic>?> uploadChatMedia({
+    required List<int> bytes,
+    required String fileName,
+    String prompt = '',
+  }) async {
+    final data = await upload(
+      '/v1/upload-media',
+      files: {'file': MultipartFile.fromBytes(bytes, filename: fileName)},
+      fields: {'prompt': prompt},
+    );
+    final block = (data is Map) ? data['content_block'] : null;
+    if (block is Map) return block.cast<String, dynamic>();
+    return null;
   }
 
   /// POST that expects a binary PDF response (report generation).

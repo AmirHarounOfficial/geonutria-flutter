@@ -207,7 +207,9 @@ class _LiveTab extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.55,
+              // Taller than wide-ish: the card carries a value, a range bar
+              // and an in/out-of-range verdict.
+              childAspectRatio: 1.18,
               children: [
                 for (final (meta, value) in sensors)
                   SensorCard(meta: meta, value: value),

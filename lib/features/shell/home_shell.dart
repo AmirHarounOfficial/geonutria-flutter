@@ -98,16 +98,14 @@ class _HomeShellState extends State<HomeShell> {
       (c) => const MyDevicesScreen(),
       primary: true,
     ),
+    // Advanced AI is the primary way people use the app now, so it sits on the
+    // bottom bar. The single-purpose analyzers moved into the drawer — they
+    // are still one tap from the menu, but no longer compete for the five
+    // slots a bottom bar can carry.
     _Feature(
-      'nav_leaf_doctor',
-      Icons.local_florist_outlined,
-      (c) => const LeafDoctorScreen(),
-      primary: true,
-    ),
-    _Feature(
-      'nav_satellite',
-      Icons.satellite_alt_outlined,
-      (c) => const SatelliteScreen(),
+      'nav_advanced_ai',
+      Icons.auto_awesome_outlined,
+      (c) => const AdvancedAiScreen(),
       primary: true,
     ),
     _Feature(
@@ -117,16 +115,21 @@ class _HomeShellState extends State<HomeShell> {
       primary: true,
     ),
     _Feature(
+      'nav_leaf_doctor',
+      Icons.local_florist_outlined,
+      (c) => const LeafDoctorScreen(),
+    ),
+    _Feature(
+      'nav_satellite',
+      Icons.satellite_alt_outlined,
+      (c) => const SatelliteScreen(),
+    ),
+    _Feature(
       'nav_crop_advisor',
       Icons.grass_outlined,
       (c) => const CropAdvisorScreen(),
     ),
     _Feature('nav_yield', Icons.analytics_outlined, (c) => const YieldScreen()),
-    _Feature(
-      'nav_advanced_ai',
-      Icons.auto_awesome_outlined,
-      (c) => const AdvancedAiScreen(),
-    ),
     _Feature('nav_profile', Icons.person_outline, (c) => const ProfileScreen()),
     _Feature(
       'nav_billing',
