@@ -6,6 +6,7 @@ import '../../core/network/api_client.dart';
 import '../../core/network/paywall_notifier.dart';
 import '../../core/settings/settings_cubit.dart';
 import '../../core/widgets/app_logo.dart';
+import '../accounting/ui/accounting_screen.dart';
 import '../advanced_ai/advanced_ai_screen.dart';
 import '../auth/bloc/auth_cubit.dart';
 import '../billing/billing_screen.dart';
@@ -130,6 +131,13 @@ class _HomeShellState extends State<HomeShell> {
       (c) => const CropAdvisorScreen(),
     ),
     _Feature('nav_yield', Icons.analytics_outlined, (c) => const YieldScreen()),
+    // Drawer rather than the bottom bar: the ledger is edited a few times a
+    // season, not daily, and the four primary slots are already spoken for.
+    _Feature(
+      'nav_accounting',
+      Icons.account_balance_wallet_outlined,
+      (c) => const AccountingScreen(),
+    ),
     _Feature('nav_profile', Icons.person_outline, (c) => const ProfileScreen()),
     _Feature(
       'nav_billing',

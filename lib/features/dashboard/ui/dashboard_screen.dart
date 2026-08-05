@@ -17,6 +17,10 @@ import 'widgets/diagnosis_card.dart';
 import 'widgets/history_chart.dart';
 import '../../control/ui/widgets/actuators_card.dart';
 import '../../control/ui/widgets/schedules_card.dart';
+import '../../deep_analysis/bloc/deep_analysis_cubit.dart';
+import '../../deep_analysis/data/analysis_context.dart';
+import '../../deep_analysis/data/deep_analysis_repository.dart';
+import '../../deep_analysis/ui/widgets/deep_analysis_card.dart';
 import 'widgets/manual_entry_form.dart';
 import 'widgets/sensor_card.dart';
 import 'widgets/weather_chart.dart';
@@ -36,6 +40,14 @@ class DashboardScreen extends StatelessWidget {
         BlocProvider(create: (_) => HistoryCubit(repo, auth)),
         BlocProvider(create: (_) => WeatherCubit(repo)),
         BlocProvider(create: (_) => ManualDiagnosisCubit(repo, auth)),
+        // Held at the dashboard rather than inside the card so a report
+        // survives the sheet being dismissed and the tab being switched.
+        BlocProvider(
+          create: (ctx) => DeepAnalysisCubit(
+            DeepAnalysisRepository(ctx.read<ApiClient>()),
+            AnalysisContextStore(),
+          )..loadContext(),
+        ),
       ],
       child: const _DashboardView(),
     );
@@ -182,6 +194,12 @@ class _LiveTab extends StatelessWidget {
           const ActuatorsCard(),
           const SchedulesCard(),
           DiagnosisCard(diagnosis: iot.diagnosis),
+          const SizedBox(height: 8),
+          DeepAnalysisCard(
+            deviceId: state.selectedId!,
+            sensors: iot.sensors,
+            enabled: iot.hasLiveData,
+          ),
           const SizedBox(height: 16),
           if (!iot.hasLiveData)
             Card(
