@@ -130,6 +130,7 @@ class MyDevice extends Equatable {
     this.firmwareVersion,
     this.farmId,
     this.lastReadingAt,
+    this.healthKnown = false,
   });
 
   final int id;
@@ -145,6 +146,14 @@ class MyDevice extends Equatable {
 
   /// When this device last stored a reading, or null if it never has.
   final DateTime? lastReadingAt;
+
+  /// Whether the server reported freshness at all.
+  ///
+  /// The deployed backend does not send `last_reading_at`, and an absent field
+  /// is not the same as "never reported" — claiming a device is offline when
+  /// we simply were not told would be worse than staying quiet. When this is
+  /// false the UI omits the status indicator entirely.
+  final bool healthKnown;
 
   bool get hasLocation => latitude != null && longitude != null;
 
@@ -186,6 +195,7 @@ class MyDevice extends Equatable {
     firmwareVersion: j['firmware_version']?.toString(),
     farmId: (j['farm_id'] as num?)?.toInt(),
     lastReadingAt: DateTime.tryParse(j['last_reading_at']?.toString() ?? ''),
+    healthKnown: j.containsKey('last_reading_at'),
   );
 
   static List<String> _stringList(dynamic v) {

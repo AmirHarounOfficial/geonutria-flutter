@@ -13,6 +13,8 @@ import '../billing/ui/paywall_popup.dart';
 import '../consultant/consultant_screen.dart';
 import '../crop_advisor/crop_advisor_screen.dart';
 import '../dashboard/ui/dashboard_screen.dart';
+import '../control/bloc/control_cubit.dart';
+import '../control/data/control_repository.dart';
 import '../devices/bloc/devices_cubit.dart';
 import '../devices/data/devices_repository.dart';
 import '../devices/ui/my_devices_screen.dart';
@@ -160,9 +162,19 @@ class _HomeShellState extends State<HomeShell> {
 
     // Devices are provided shell-wide (not inside My Devices) so the dashboard
     // can surface the user's controls without a second fetch.
-    return BlocProvider(
-      create: (ctx) =>
-          DevicesCubit(DevicesRepository(ctx.read<ApiClient>()))..load(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (ctx) =>
+              DevicesCubit(DevicesRepository(ctx.read<ApiClient>()))..load(),
+        ),
+        // Actuators and schedules come from the /control router — the same
+        // endpoints the web dashboard uses.
+        BlocProvider(
+          create: (ctx) =>
+              ControlCubit(ControlRepository(ctx.read<ApiClient>()))..load(),
+        ),
+      ],
       child: Scaffold(
         appBar: AppBar(
           title: Text(context.tr(feature.titleKey)),

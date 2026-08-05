@@ -15,9 +15,9 @@ import '../data/iot_repository.dart';
 import 'sensor_meta.dart';
 import 'widgets/diagnosis_card.dart';
 import 'widgets/history_chart.dart';
-import 'widgets/automations_card.dart';
+import '../../control/ui/widgets/actuators_card.dart';
+import '../../control/ui/widgets/schedules_card.dart';
 import 'widgets/manual_entry_form.dart';
-import 'widgets/quick_controls_card.dart';
 import 'widgets/sensor_card.dart';
 import 'widgets/weather_chart.dart';
 
@@ -179,8 +179,8 @@ class _LiveTab extends StatelessWidget {
             lastUpdated: state.lastUpdated,
           ),
           const SizedBox(height: 12),
-          QuickControlsCard(preferredDeviceId: state.selectedId),
-          const AutomationsCard(),
+          const ActuatorsCard(),
+          const SchedulesCard(),
           DiagnosisCard(diagnosis: iot.diagnosis),
           const SizedBox(height: 16),
           if (!iot.hasLiveData)

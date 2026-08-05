@@ -61,7 +61,10 @@ class _MyDevicesView extends StatelessWidget {
                               title: Row(
                                 children: [
                                   Expanded(child: Text(d.name)),
-                                  _HealthChip(health: d.health),
+                                  // Only shown when the server actually
+                                  // reports freshness.
+                                  if (d.healthKnown)
+                                    _HealthChip(health: d.health),
                                 ],
                               ),
                               subtitle: Text(
@@ -69,7 +72,8 @@ class _MyDevicesView extends StatelessWidget {
                                   if (d.location != null &&
                                       d.location!.isNotEmpty)
                                     d.location,
-                                  'Last reading ${d.lastSeenLabel}',
+                                  if (d.healthKnown)
+                                    'Last reading ${d.lastSeenLabel}',
                                   '${d.mqttTopics.length} topics · ${d.controls.length} controls',
                                   if (d.firmwareVersion != null)
                                     'fw ${d.firmwareVersion}',
