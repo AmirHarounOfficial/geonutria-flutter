@@ -32,6 +32,36 @@ class FarmContextOptions {
     'mangoes',
   ];
 
+  static const locations = [
+    'Upper Egypt',
+    'Lower Egypt (Delta)',
+    'Canal Zone',
+    'Sinai',
+    'New Valley & Oases',
+    'Cairo',
+    'Giza',
+    'Alexandria',
+    'Faiyum',
+    'Beheira',
+    'Sharqia',
+    'Dakahlia',
+    'Gharbia',
+    'Menofia',
+    'Qalyubia',
+    'Ismailia',
+    'Suez',
+    'Port Said',
+    'Matrouh',
+    'Red Sea',
+    'Asyut',
+    'Sohag',
+    'Qena',
+    'Luxor',
+    'Aswan',
+    'Minya',
+    'Beni Suef',
+  ];
+
   static const seasons = ['winter', 'spring', 'summer', 'autumn'];
 
   static const irrigationTypes = ['drip', 'sprinkler', 'flood', 'pivot'];

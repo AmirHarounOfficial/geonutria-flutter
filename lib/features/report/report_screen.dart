@@ -185,6 +185,22 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  Future<void> _downloadReport() async {
+    if (_pdfBytes == null) return;
+    try {
+      await savePdf(_pdfBytes!, 'geonutria_farm_report.pdf');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Report downloaded successfully')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('Download failed: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -262,15 +278,15 @@ class _ReportScreenState extends State<ReportScreen> {
                         child: FilledButton.icon(
                           onPressed: () => _shareReport(emailOnly: false),
                           icon: const Icon(Icons.share),
-                          label: const Text('Quick Share'),
+                          label: const Text('Share'),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => _shareReport(emailOnly: true),
-                          icon: const Icon(Icons.email_outlined),
-                          label: const Text('Share Email'),
+                          onPressed: _downloadReport,
+                          icon: const Icon(Icons.download),
+                          label: const Text('Download'),
                         ),
                       ),
                     ],

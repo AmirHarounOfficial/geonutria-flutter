@@ -24,7 +24,7 @@ import '../satellite/satellite_screen.dart';
 import '../support/support_screen.dart';
 import '../yield_predict/yield_screen.dart';
 import '../farm_context/farm_hierarchy_cubit.dart';
-import '../farm_context/farm_plant_selector.dart';
+import '../farm_context/global_context_bar.dart';
 
 /// A navigable feature entry in the shell.
 class _Feature {
@@ -191,7 +191,7 @@ class _HomeShellState extends State<HomeShell> {
           children: [
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: FarmPlantSelector(),
+              child: GlobalContextBar(),
             ),
             Expanded(
               child: IndexedStack(
