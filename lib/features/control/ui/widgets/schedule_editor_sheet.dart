@@ -83,11 +83,82 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  String? _thresholdError;
+  String? _durationError;
+
+  (double, double, String) _getMetricRange(String sensor) {
+    switch (sensor.toLowerCase()) {
+      case 'soil_moisture':
+      case 'humidity':
+        return (0.0, 100.0, '0 to 100%');
+      case 'soil_temp':
+      case 'ambient_temp':
+      case 'temperature':
+        return (-50.0, 100.0, '-50 to 100°C');
+      case 'soil_ph':
+      case 'ph':
+        return (0.0, 14.0, '0 to 14');
+      case 'ec':
+        return (0.0, 20.0, '0 to 20 dS/m');
+      case 'nitrogen':
+      case 'phosphorus':
+      case 'potassium':
+        return (0.0, 1000.0, '0 to 1000 mg/kg');
+      default:
+        return (-10000.0, 10000.0, 'valid numeric value');
+    }
+  }
+
+  void _validateThreshold([String? text]) {
+    if (_trigger != TriggerType.threshold) {
+      setState(() => _thresholdError = null);
+      return;
+    }
+    final raw = (text ?? _threshold.text).trim();
+    if (raw.isEmpty) {
+      setState(() => _thresholdError = 'Enter a numeric threshold');
+      return;
+    }
+    final val = double.tryParse(raw);
+    if (val == null) {
+      setState(() => _thresholdError = 'Invalid number format');
+      return;
+    }
+    final (min, max, label) = _getMetricRange(_sensor);
+    if (val < min || val > max) {
+      setState(() => _thresholdError = 'Value must be between $label');
+      return;
+    }
+    setState(() => _thresholdError = null);
+  }
+
+  void _validateDuration([String? text]) {
+    final raw = (text ?? _duration.text).trim();
+    if (raw.isEmpty) {
+      setState(() => _durationError = null);
+      return;
+    }
+    final val = int.tryParse(raw);
+    if (val == null || val < 1 || val > 1440) {
+      setState(() => _durationError = 'Enter a duration between 1 and 1440 minutes');
+      return;
+    }
+    setState(() => _durationError = null);
+  }
+
   Future<void> _save() async {
     final cubit = context.read<ControlCubit>();
     final actuatorId = _actuatorId;
     if (actuatorId == null) {
       _snack('Choose which device the rule should act on.');
+      return;
+    }
+
+    _validateThreshold();
+    _validateDuration();
+
+    if (_thresholdError != null || _durationError != null) {
+      _snack(_thresholdError ?? _durationError ?? 'Please fix input errors.');
       return;
     }
 
@@ -229,8 +300,13 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
                     sensor: _sensor,
                     operator: _operator,
                     controller: _threshold,
+                    errorText: _thresholdError,
+                    onChanged: _validateThreshold,
                     onSource: (v) => setState(() => _sourceDeviceId = v),
-                    onSensor: (v) => setState(() => _sensor = v),
+                    onSensor: (v) {
+                      setState(() => _sensor = v);
+                      _validateThreshold();
+                    },
                     onOperator: (v) => setState(() => _operator = v),
                   ),
 
@@ -280,9 +356,11 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
                     TextField(
                       controller: _duration,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
+                      onChanged: _validateDuration,
+                      decoration: InputDecoration(
                         labelText: 'Run for (minutes, optional)',
                         helperText: 'Leave blank to leave it on',
+                        errorText: _durationError,
                       ),
                     ),
                   ],
@@ -392,6 +470,8 @@ class _ThresholdFields extends StatelessWidget {
     required this.onSource,
     required this.onSensor,
     required this.onOperator,
+    this.errorText,
+    this.onChanged,
   });
 
   final List<SensorDevice> sources;
@@ -402,6 +482,8 @@ class _ThresholdFields extends StatelessWidget {
   final ValueChanged<int?> onSource;
   final ValueChanged<String> onSensor;
   final ValueChanged<String> onOperator;
+  final String? errorText;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -456,6 +538,7 @@ class _ThresholdFields extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               flex: 3,
@@ -479,13 +562,15 @@ class _ThresholdFields extends StatelessWidget {
               flex: 2,
               child: TextField(
                 controller: controller,
+                onChanged: onChanged,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                   signed: true,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Value',
                   isDense: true,
+                  errorText: errorText,
                 ),
               ),
             ),

@@ -250,15 +250,29 @@ class ApiClient {
     } on DioException catch (e) {
       final err = e.error;
       if (err is AppException) throw err;
+      final serverMsg = _extractMessage(e.response?.data);
+      if (serverMsg != null && serverMsg.isNotEmpty) {
+        throw AppException(serverMsg, statusCode: e.response?.statusCode);
+      }
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.connectionError) {
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown) {
+        if (kIsWeb) {
+          final isXmlErr = e.toString().contains('XMLHttpRequest') || e.message?.contains('XMLHttpRequest') == true;
+          if (isXmlErr) {
+            throw NetworkException(
+              'Browser CORS / Network error connecting to ${Env.apiBaseUrl}. Ensure CORS preflight is configured on the server, or test on Android / iOS / Desktop.',
+            );
+          }
+          throw NetworkException(
+            'Unable to connect to backend server (${Env.apiBaseUrl}). Please check server network connection.',
+          );
+        }
         throw const NetworkException();
       }
       final code = e.response?.statusCode;
-      final msg =
-          _extractMessage(e.response?.data) ??
-          'Request failed${code != null ? ' ($code)' : ''}';
+      final msg = 'Request failed${code != null ? ' ($code)' : ''}';
       throw AppException(msg, statusCode: code);
     }
   }

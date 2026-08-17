@@ -56,25 +56,31 @@ class ProfileCubit extends Cubit<ProfileState> {
       emit(state.copyWith(state: LoadState.loaded, profile: profile, team: team));
     } on AppException catch (e) {
       emit(state.copyWith(state: LoadState.error, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(state: LoadState.error, error: 'Failed to load profile: $e'));
     }
   }
 
   Future<void> updateProfile({String? name, String? mobile, int? age, String? sex}) async {
     try {
       await _repo.updateProfile(name: name, mobile: mobile, age: age, sex: sex);
-      emit(state.copyWith(message: 'Profile updated'));
+      emit(state.copyWith(message: 'Profile updated successfully'));
       await load();
     } on AppException catch (e) {
       emit(state.copyWith(error: e.message));
+    } catch (e) {
+      emit(state.copyWith(error: 'Profile update failed: $e'));
     }
   }
 
   Future<void> changePassword({String? oldPassword, required String newPassword}) async {
     try {
       await _repo.changePassword(oldPassword: oldPassword, newPassword: newPassword);
-      emit(state.copyWith(message: 'Password changed'));
+      emit(state.copyWith(message: 'Password changed successfully'));
     } on AppException catch (e) {
       emit(state.copyWith(error: e.message));
+    } catch (e) {
+      emit(state.copyWith(error: 'Password update failed: $e'));
     }
   }
 
@@ -88,6 +94,8 @@ class ProfileCubit extends Cubit<ProfileState> {
       _auth.refreshCredits();
     } on AppException catch (e) {
       emit(state.copyWith(error: e.message));
+    } catch (e) {
+      emit(state.copyWith(error: 'Picture upload failed: $e'));
     }
   }
 
@@ -99,6 +107,8 @@ class ProfileCubit extends Cubit<ProfileState> {
       _auth.refreshCredits();
     } on AppException catch (e) {
       emit(state.copyWith(error: e.message));
+    } catch (e) {
+      emit(state.copyWith(error: 'Add member failed: $e'));
     }
   }
 
@@ -110,6 +120,8 @@ class ProfileCubit extends Cubit<ProfileState> {
       _auth.refreshCredits();
     } on AppException catch (e) {
       emit(state.copyWith(error: e.message));
+    } catch (e) {
+      emit(state.copyWith(error: 'Remove member failed: $e'));
     }
   }
 }

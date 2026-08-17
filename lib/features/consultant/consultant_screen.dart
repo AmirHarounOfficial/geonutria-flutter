@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
-import '../../core/localization/app_localizations.dart';
 import '../../core/network/api_client.dart';
 import '../../core/widgets/status_views.dart';
 import '../auth/bloc/auth_cubit.dart';

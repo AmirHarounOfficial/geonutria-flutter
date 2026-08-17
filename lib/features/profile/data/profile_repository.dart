@@ -32,8 +32,8 @@ class ProfileRepository {
 
   Future<void> changePassword({String? oldPassword, required String newPassword}) async {
     await _api.post('/profile/password', query: _api.authQuery(), body: {
-      if (oldPassword != null) 'old_password': bcryptSafePassword(oldPassword),
-      'new_password': bcryptSafePassword(newPassword),
+      if (oldPassword != null && oldPassword.isNotEmpty) 'old_password': oldPassword,
+      'new_password': newPassword,
     });
   }
 

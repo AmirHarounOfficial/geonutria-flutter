@@ -87,15 +87,16 @@ class _ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<_ProfileTab> {
   final _name = TextEditingController();
   final _mobile = TextEditingController();
-  final _age = TextEditingController();
+  DateTime? _dob;
   String _sex = 'Male';
   bool _hydrated = false;
+  String? _nameError;
+  String? _mobileError;
 
   @override
   void dispose() {
     _name.dispose();
     _mobile.dispose();
-    _age.dispose();
     super.dispose();
   }
 
@@ -104,8 +105,78 @@ class _ProfileTabState extends State<_ProfileTab> {
     _hydrated = true;
     _name.text = p.name;
     _mobile.text = p.mobile ?? '';
-    _age.text = p.age?.toString() ?? '';
+    if (p.age != null && p.age! > 0) {
+      final approxYear = DateTime.now().year - p.age!;
+      _dob = DateTime(approxYear, 1, 1);
+    }
     if (p.sex == 'Male' || p.sex == 'Female') _sex = p.sex!;
+  }
+
+  int? get _computedAge {
+    if (_dob == null) return null;
+    final now = DateTime.now();
+    int age = now.year - _dob!.year;
+    if (now.month < _dob!.month ||
+        (now.month == _dob!.month && now.day < _dob!.day)) {
+      age--;
+    }
+    return age.clamp(0, 120);
+  }
+
+  void _validateName(String val) {
+    final trimmed = val.trim();
+    if (trimmed.isEmpty) {
+      setState(() => _nameError = 'Name is required');
+    } else if (trimmed.length < 2) {
+      setState(() => _nameError = 'Name must be at least 2 characters');
+    } else {
+      setState(() => _nameError = null);
+    }
+  }
+
+  void _validateMobile(String val) {
+    final trimmed = val.trim();
+    if (trimmed.isEmpty) {
+      setState(() => _mobileError = null);
+      return;
+    }
+    final digitsOnly = trimmed.replaceAll(RegExp(r'[^\d]'), '');
+    if (digitsOnly.length < 8 || digitsOnly.length > 15) {
+      setState(() => _mobileError = 'Enter a valid phone number (8-15 digits)');
+    } else {
+      setState(() => _mobileError = null);
+    }
+  }
+
+  Future<void> _pickDob() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dob ?? DateTime(1995, 1, 1),
+      firstDate: DateTime(1920),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _dob = picked);
+    }
+  }
+
+  void _saveProfile() {
+    _validateName(_name.text);
+    _validateMobile(_mobile.text);
+    if (_nameError != null || _mobileError != null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Please correct profile field errors.')),
+        );
+      return;
+    }
+    context.read<ProfileCubit>().updateProfile(
+          name: _name.text.trim(),
+          mobile: _mobile.text.trim(),
+          age: _computedAge,
+          sex: _sex,
+        );
   }
 
   @override
@@ -123,6 +194,7 @@ class _ProfileTabState extends State<_ProfileTab> {
         }
         final p = state.profile!;
         _hydrate(p);
+        final ageLabel = _computedAge != null ? ' ($_computedAge yrs)' : '';
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -163,22 +235,41 @@ class _ProfileTabState extends State<_ProfileTab> {
             const SizedBox(height: 24),
             TextField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Name'),
+              onChanged: _validateName,
+              decoration: InputDecoration(
+                labelText: 'Name',
+                errorText: _nameError,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _mobile,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Mobile'),
+              onChanged: _validateMobile,
+              decoration: InputDecoration(
+                labelText: 'Mobile',
+                errorText: _mobileError,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _age,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Age'),
+                  child: InkWell(
+                    onTap: _pickDob,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Date of Birth',
+                        suffixIcon: Icon(Icons.calendar_today, size: 18),
+                      ),
+                      child: Text(
+                        _dob != null
+                            ? '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}$ageLabel'
+                            : 'Select Date of Birth',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -197,12 +288,7 @@ class _ProfileTabState extends State<_ProfileTab> {
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: () => context.read<ProfileCubit>().updateProfile(
-                    name: _name.text.trim(),
-                    mobile: _mobile.text.trim(),
-                    age: int.tryParse(_age.text),
-                    sex: _sex,
-                  ),
+              onPressed: _saveProfile,
               icon: const Icon(Icons.save),
               label: Text(context.tr('save')),
             ),
@@ -221,43 +307,76 @@ class _ProfileTabState extends State<_ProfileTab> {
   void _showPasswordDialog(BuildContext context, bool hasPassword) {
     final oldP = TextEditingController();
     final newP = TextEditingController();
+    String? dialogError;
+
     showDialog(
       context: context,
-      builder: (dctx) => AlertDialog(
-        title: const Text('Change password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (hasPassword)
-              TextField(
-                controller: oldP,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Current password'),
-              ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: newP,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'New password'),
+      builder: (dctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Change password'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasPassword)
+                  TextField(
+                    controller: oldP,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Current password'),
+                  ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: newP,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'New password',
+                    helperText: 'Must be at least 6 characters long',
+                  ),
+                ),
+                if (dialogError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    dialogError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: Text(context.tr('cancel')),
-          ),
-          FilledButton(
-            onPressed: () {
-              context.read<ProfileCubit>().changePassword(
-                    oldPassword: hasPassword ? oldP.text : null,
-                    newPassword: newP.text,
-                  );
-              Navigator.of(dctx).pop();
-            },
-            child: Text(context.tr('save')),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dctx).pop(),
+                child: Text(context.tr('cancel')),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final newText = newP.text;
+                  if (hasPassword && oldP.text.trim().isEmpty) {
+                    setDialogState(() {
+                      dialogError = 'Please enter your current password.';
+                    });
+                    return;
+                  }
+                  if (newText.length < 6) {
+                    setDialogState(() {
+                      dialogError = 'New password must be at least 6 characters long.';
+                    });
+                    return;
+                  }
+                  context.read<ProfileCubit>().changePassword(
+                        oldPassword: hasPassword ? oldP.text : null,
+                        newPassword: newText,
+                      );
+                  Navigator.of(dctx).pop();
+                },
+                child: Text(context.tr('save')),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

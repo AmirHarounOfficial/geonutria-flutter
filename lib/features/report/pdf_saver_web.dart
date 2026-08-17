@@ -15,3 +15,7 @@ Future<void> savePdf(List<int> bytes, String fileName) async {
   anchor.click();
   web.URL.revokeObjectURL(url);
 }
+
+Future<void> sharePdfViaEmail(List<int> bytes, String fileName, {String? recipientEmail}) async {
+  await savePdf(bytes, fileName);
+}

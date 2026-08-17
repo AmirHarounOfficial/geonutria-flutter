@@ -59,6 +59,8 @@ class CropAdvisorCubit extends Cubit<CropAdvisorState> {
       emit(state.copyWith(soilState: LoadState.initial));
     } on AppException catch (e) {
       emit(state.copyWith(soilState: LoadState.error, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(soilState: LoadState.error, error: 'Soil classification failed: $e'));
     }
   }
 
@@ -93,6 +95,8 @@ class CropAdvisorCubit extends Cubit<CropAdvisorState> {
       emit(state.copyWith(recState: LoadState.initial));
     } on AppException catch (e) {
       emit(state.copyWith(recState: LoadState.error, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(recState: LoadState.error, error: 'Recommendation request failed: $e'));
     }
   }
 }

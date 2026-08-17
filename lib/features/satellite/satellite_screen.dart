@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -81,6 +82,7 @@ class _IndicesTabState extends State<_IndicesTab>
   bool _polygonMode = false;
   LatLng? _point;
   final List<LatLng> _polygon = [];
+  bool _locating = false;
 
   DateTime _start = DateTime.now().subtract(const Duration(days: 30));
   DateTime _end = DateTime.now();
@@ -88,6 +90,46 @@ class _IndicesTabState extends State<_IndicesTab>
   String _compareUnit = 'months';
   double _cloud = 10;
   double _radius = 1.0;
+
+  Future<void> _useMyLocation() async {
+    setState(() => _locating = true);
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              const SnackBar(content: Text('Location permission was denied.')),
+            );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      final here = LatLng(pos.latitude, pos.longitude);
+      setState(() {
+        _point = here;
+        if (_polygonMode) {
+          _polygon.add(here);
+        }
+      });
+      _map.move(here, 14);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text('Could not fetch location: $e')),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
 
   void _onTap(LatLng p) {
     setState(() {
@@ -147,14 +189,34 @@ class _IndicesTabState extends State<_IndicesTab>
               borderRadius: BorderRadius.circular(16),
               child: SizedBox(
                 height: 260,
-                child: AppMap(
-                  controller: _map,
-                  center: _point ?? const LatLng(26.8206, 30.8025),
-                  zoom: 6,
-                  satellite: true,
-                  onTap: _onTap,
-                  markers: _polygonMode || _point == null ? const [] : [_point!],
-                  polygonPoints: _polygonMode ? _polygon : null,
+                child: Stack(
+                  children: [
+                    AppMap(
+                      controller: _map,
+                      center: _point ?? const LatLng(26.8206, 30.8025),
+                      zoom: 6,
+                      satellite: true,
+                      onTap: _onTap,
+                      markers: _polygonMode || _point == null ? const [] : [_point!],
+                      polygonPoints: _polygonMode ? _polygon : null,
+                    ),
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: FloatingActionButton.small(
+                        heroTag: 'sat_loc',
+                        onPressed: _locating ? null : _useMyLocation,
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        child: _locating
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.my_location),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

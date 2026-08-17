@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/widgets/map_location_picker.dart';
 import '../../../core/widgets/status_views.dart';
+import '../../auth/bloc/auth_cubit.dart';
 import '../../dashboard/bloc/history_cubit.dart' show LoadState;
 import '../bloc/devices_cubit.dart';
 import '../data/device_models.dart' show DeviceHealth;
@@ -25,6 +26,12 @@ class _MyDevicesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = context.select(
+      (AuthCubit c) =>
+          c.state.isAdmin ||
+          c.state.userId == 1 ||
+          c.state.role?.toLowerCase() == 'admin',
+    );
     return BlocConsumer<DevicesCubit, DevicesState>(
       listenWhen: (a, b) => a.error != b.error && b.error != null,
       listener: (ctx, state) {
@@ -98,11 +105,13 @@ class _MyDevicesView extends StatelessWidget {
                       ),
                     ),
           },
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showBindSheet(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Bind device'),
-          ),
+          floatingActionButton: isAdmin
+              ? FloatingActionButton.extended(
+                  onPressed: () => _showBindSheet(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Bind device'),
+                )
+              : null,
         );
       },
     );

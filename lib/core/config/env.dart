@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Environment configuration for the GeoNutria mobile app.
 ///
 /// In production the React frontend talks to the backend through nginx at
@@ -10,21 +12,31 @@ class Env {
 
   /// Base URL for all REST calls. Endpoints are appended verbatim
   /// (e.g. `$apiBaseUrl/login`, `$apiBaseUrl/iot-status`).
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://app.geonutria.ai/api',
-  );
+  static String get apiBaseUrl {
+    const fromEnv = String.fromEnvironment('API_BASE_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final origin = Uri.base.origin;
+      if (origin.contains('geonutria.ai')) {
+        return '$origin/api';
+      }
+    }
+    return 'https://app.geonutria.ai/api';
+  }
 
   /// Base used to resolve relative `/static/...` media paths returned by the
-  /// backend (satellite plots, profile/asset images). These are served by the
-  /// FastAPI app, which lives behind nginx at `/api` — exactly like the web
-  /// frontend, which prefixes such paths with its `/api` base. So this must
-  /// include `/api` (otherwise the path hits the frontend's own assets and
-  /// 404s).
-  static const String staticBaseUrl = String.fromEnvironment(
-    'STATIC_BASE_URL',
-    defaultValue: 'https://app.geonutria.ai/api',
-  );
+  /// backend (satellite plots, profile/asset images).
+  static String get staticBaseUrl {
+    const fromEnv = String.fromEnvironment('STATIC_BASE_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    if (kIsWeb) {
+      final origin = Uri.base.origin;
+      if (origin.contains('geonutria.ai')) {
+        return '$origin/api';
+      }
+    }
+    return 'https://app.geonutria.ai/api';
+  }
 
   /// WebSocket base for the support chat (`$wsBaseUrl/support/ws/{userId}`).
   static const String wsBaseUrl = String.fromEnvironment(

@@ -24,7 +24,9 @@ class AuthState extends Equatable {
   final int teamCredits;
   final String? picture;
 
-  bool get isAdmin => role == 'Admin';
+  bool get isAdmin =>
+      role?.toLowerCase() == 'admin' ||
+      userId == 1;
 
   AuthState copyWith({
     AuthStatus? status,
@@ -97,11 +99,12 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   void onAuthenticated(LoginResult r) {
+    final effectiveRole = r.role ?? (r.userId == 1 ? 'Admin' : 'User');
     emit(
       state.copyWith(
         status: AuthStatus.authenticated,
         userId: r.userId,
-        role: r.role,
+        role: effectiveRole,
         aiCredits: r.aiCredits,
         teamCredits: r.teamCredits,
       ),

@@ -11,7 +11,6 @@ import '../advanced_ai/advanced_ai_screen.dart';
 import '../auth/bloc/auth_cubit.dart';
 import '../billing/billing_screen.dart';
 import '../billing/ui/paywall_popup.dart';
-import '../consultant/consultant_screen.dart';
 import '../crop_advisor/crop_advisor_screen.dart';
 import '../dashboard/ui/dashboard_screen.dart';
 import '../control/bloc/control_cubit.dart';
@@ -19,12 +18,13 @@ import '../control/data/control_repository.dart';
 import '../devices/bloc/devices_cubit.dart';
 import '../devices/data/devices_repository.dart';
 import '../devices/ui/my_devices_screen.dart';
-import '../leaf_doctor/leaf_doctor_screen.dart';
 import '../profile/ui/profile_screen.dart';
 import '../report/report_screen.dart';
 import '../satellite/satellite_screen.dart';
 import '../support/support_screen.dart';
 import '../yield_predict/yield_screen.dart';
+import '../farm_context/farm_hierarchy_cubit.dart';
+import '../farm_context/farm_plant_selector.dart';
 
 /// A navigable feature entry in the shell.
 class _Feature {
@@ -90,69 +90,53 @@ class _HomeShellState extends State<HomeShell> {
     _Feature(
       'nav_dashboard',
       Icons.dashboard_outlined,
-      (c) => const DashboardScreen(),
+      (c) => DashboardScreen(),
       primary: true,
     ),
     _Feature(
       'nav_my_devices',
       Icons.router_outlined,
-      (c) => const MyDevicesScreen(),
+      (c) => MyDevicesScreen(),
       primary: true,
     ),
-    // Advanced AI is the primary way people use the app now, so it sits on the
-    // bottom bar. The single-purpose analyzers moved into the drawer — they
-    // are still one tap from the menu, but no longer compete for the five
-    // slots a bottom bar can carry.
     _Feature(
       'nav_advanced_ai',
       Icons.auto_awesome_outlined,
-      (c) => const AdvancedAiScreen(),
+      (c) => AdvancedAiScreen(),
       primary: true,
     ),
-    _Feature(
-      'nav_consultant',
-      Icons.smart_toy_outlined,
-      (c) => const ConsultantScreen(),
-      primary: true,
-    ),
-    _Feature(
-      'nav_leaf_doctor',
-      Icons.local_florist_outlined,
-      (c) => const LeafDoctorScreen(),
-    ),
+
     _Feature(
       'nav_satellite',
       Icons.satellite_alt_outlined,
-      (c) => const SatelliteScreen(),
+      (c) => SatelliteScreen(),
     ),
     _Feature(
       'nav_crop_advisor',
       Icons.grass_outlined,
-      (c) => const CropAdvisorScreen(),
+      (c) => CropAdvisorScreen(),
     ),
-    _Feature('nav_yield', Icons.analytics_outlined, (c) => const YieldScreen()),
-    // Drawer rather than the bottom bar: the ledger is edited a few times a
-    // season, not daily, and the four primary slots are already spoken for.
+    _Feature('nav_yield', Icons.analytics_outlined, (c) => YieldScreen()),
     _Feature(
       'nav_accounting',
       Icons.account_balance_wallet_outlined,
-      (c) => const AccountingScreen(),
+      (c) => AccountingScreen(),
     ),
-    _Feature('nav_profile', Icons.person_outline, (c) => const ProfileScreen()),
+    _Feature('nav_profile', Icons.person_outline, (c) => ProfileScreen()),
     _Feature(
       'nav_billing',
       Icons.credit_card_outlined,
-      (c) => const BillingScreen(),
+      (c) => BillingScreen(),
     ),
     _Feature(
       'nav_report',
       Icons.picture_as_pdf_outlined,
-      (c) => const ReportScreen(),
+      (c) => ReportScreen(),
     ),
     _Feature(
       'nav_support',
       Icons.support_agent_outlined,
-      (c) => const SupportScreen(),
+      (c) => SupportScreen(),
     ),
   ];
 
@@ -179,11 +163,15 @@ class _HomeShellState extends State<HomeShell> {
           create: (ctx) =>
               DevicesCubit(DevicesRepository(ctx.read<ApiClient>()))..load(),
         ),
-        // Actuators and schedules come from the /control router — the same
-        // endpoints the web dashboard uses.
         BlocProvider(
           create: (ctx) =>
               ControlCubit(ControlRepository(ctx.read<ApiClient>()))..load(),
+        ),
+        BlocProvider(
+          create: (ctx) => FarmHierarchyCubit(
+            ctx.read<ApiClient>(),
+            ctx.read<AuthCubit>(),
+          )..loadHierarchy(),
         ),
       ],
       child: Scaffold(
@@ -199,9 +187,19 @@ class _HomeShellState extends State<HomeShell> {
             _select(i);
           },
         ),
-        body: IndexedStack(
-          index: _index,
-          children: [for (final f in _features) Builder(builder: f.builder)],
+        body: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: FarmPlantSelector(),
+            ),
+            Expanded(
+              child: IndexedStack(
+                index: _index,
+                children: [for (final f in _features) Builder(builder: f.builder)],
+              ),
+            ),
+          ],
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: selectedBottom < 0 ? 0 : selectedBottom,

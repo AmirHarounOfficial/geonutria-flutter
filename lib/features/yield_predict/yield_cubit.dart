@@ -67,6 +67,8 @@ class YieldCubit extends Cubit<YieldState> {
       emit(state.copyWith(state: LoadState.initial));
     } on AppException catch (e) {
       emit(state.copyWith(state: LoadState.error, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(state: LoadState.error, error: 'Yield prediction request failed: $e'));
     }
   }
 }

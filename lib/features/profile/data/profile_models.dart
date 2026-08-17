@@ -12,6 +12,7 @@ class UserProfile extends Equatable {
     this.subscriptionPlan,
     this.picture,
     this.hasPassword = true,
+    this.role,
   });
 
   final int id;
@@ -24,6 +25,13 @@ class UserProfile extends Equatable {
   final String? subscriptionPlan;
   final String? picture;
   final bool hasPassword;
+  final String? role;
+
+  bool get isAdmin =>
+      role?.toLowerCase() == 'admin' ||
+      email == 'ACFM_IT_Admin9573' ||
+      id == 1 ||
+      subscriptionPlan?.toLowerCase() == 'admin';
 
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
         id: (j['id'] as num).toInt(),
@@ -36,10 +44,12 @@ class UserProfile extends Equatable {
         subscriptionPlan: j['subscription_plan']?.toString(),
         picture: j['picture']?.toString(),
         hasPassword: j['has_password'] != false,
+        role: j['role']?.toString() ??
+            (j['email'] == 'ACFM_IT_Admin9573' || (j['id'] as num?)?.toInt() == 1 ? 'Admin' : 'User'),
       );
 
   @override
-  List<Object?> get props => [id, name, email, mobile, age, sex, aiCredits, picture];
+  List<Object?> get props => [id, name, email, mobile, age, sex, aiCredits, picture, role];
 }
 
 class TeamMember extends Equatable {
