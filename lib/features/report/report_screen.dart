@@ -175,7 +175,7 @@ class _ReportScreenState extends State<ReportScreen> {
       if (emailOnly) {
         await sharePdfViaEmail(_pdfBytes!, 'geonutria_farm_report.pdf');
       } else {
-        await savePdf(_pdfBytes!, 'geonutria_farm_report.pdf');
+        await sharePdf(_pdfBytes!, 'geonutria_farm_report.pdf');
       }
     } catch (e) {
       if (!mounted) return;
@@ -188,11 +188,15 @@ class _ReportScreenState extends State<ReportScreen> {
   Future<void> _downloadReport() async {
     if (_pdfBytes == null) return;
     try {
-      await savePdf(_pdfBytes!, 'geonutria_farm_report.pdf');
+      final savedPath = await savePdf(_pdfBytes!, 'geonutria_farm_report.pdf');
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Report downloaded successfully')));
+        ..showSnackBar(SnackBar(
+          content: Text(savedPath != null && savedPath.isNotEmpty
+              ? 'Report saved to $savedPath'
+              : 'Report downloaded successfully'),
+        ));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)

@@ -42,7 +42,13 @@ class ModelRepository {
 
   Future<MultipartFile> _multipart(XFile file) async {
     final bytes = await file.readAsBytes();
-    return MultipartFile.fromBytes(bytes, filename: file.name);
+    final filename =
+        (file.name.isNotEmpty && file.name != 'blob') ? file.name : 'soil_image.jpg';
+    return MultipartFile.fromBytes(
+      bytes,
+      filename: filename,
+      contentType: DioMediaType('image', 'jpeg'),
+    );
   }
 
   /// Palm flow: `POST /diagnose-palm-disease` (seg + classify in one call).
@@ -139,8 +145,8 @@ class ModelRepository {
         .toList();
   }
 
-  /// `POST /predict-yield` (JSON) — returns kg/ha.
-  Future<int> predictYield({
+  /// `POST /predict-yield` (SSE Stream) — streams AI diagnosis & prediction tokens.
+  Stream<ChatToken> streamPredictYield({
     required int userId,
     required String crop,
     required int n,
@@ -150,20 +156,26 @@ class ModelRepository {
     required int humidity,
     required double ph,
     required int rainfall,
-  }) async {
-    final data = await _api.post('/predict-yield', body: {
-      'Crop': crop,
-      'N': n,
-      'P': p,
-      'K': k,
-      'Temperature': temperature,
-      'Humidity': humidity,
-      'pH': ph,
-      'Rainfall': rainfall,
-      'user_id': userId,
-    });
-    final map = (data as Map).cast<String, dynamic>();
-    return (map['predicted_yield_kg_per_ha'] as num?)?.toInt() ?? 0;
+    String lang = 'en',
+    Map<String, dynamic>? context,
+  }) {
+    return _api.streamChatTokens(
+      '/predict-yield',
+      body: {
+        'user_id': userId,
+        'Crop': crop,
+        'N': n,
+        'P': p,
+        'K': k,
+        'Temperature': temperature,
+        'Humidity': humidity,
+        'pH': ph,
+        'Rainfall': rainfall,
+        'lang': lang,
+        'stream': true,
+        if (context != null) ...context,
+      },
+    );
   }
 
   /// `POST /count-palm-trees` (multipart aerial image).

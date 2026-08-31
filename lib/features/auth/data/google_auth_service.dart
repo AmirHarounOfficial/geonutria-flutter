@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/config/env.dart';
@@ -8,10 +9,13 @@ import '../../../core/config/env.dart';
 class GoogleAuthService {
   GoogleAuthService()
     : _googleSignIn = GoogleSignIn(
-        scopes: const ['email', 'profile'],
-        serverClientId: Env.googleServerClientId.isEmpty
-            ? null
-            : Env.googleServerClientId,
+        clientId: kIsWeb && Env.googleServerClientId.isNotEmpty
+            ? Env.googleServerClientId
+            : null,
+        serverClientId: (!kIsWeb && Env.googleServerClientId.isNotEmpty)
+            ? Env.googleServerClientId
+            : null,
+        scopes: const ['email'],
       );
 
   final GoogleSignIn _googleSignIn;

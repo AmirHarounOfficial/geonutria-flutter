@@ -1,71 +1,172 @@
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/error/app_exception.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/utils/password.dart';
 import 'profile_models.dart';
 
-/// Wraps the `/profile` router (prefixed). `user_id` travels as a query param.
 class ProfileRepository {
   ProfileRepository(this._api);
 
   final ApiClient _api;
 
-  Future<UserProfile> getProfile() async {
-    final data = await _api.get('/profile/', query: _api.authQuery());
-    return UserProfile.fromJson((data as Map).cast<String, dynamic>());
+  int? get currentUserId => _api.userId;
+
+  // --- Profile Operations ---
+  Future<UserProfile> getProfile(int userId) async {
+    if (userId <= 0) {
+      throw const AppException('User ID is missing or invalid. Please login again.');
+    }
+    final data = await _api.get('/profile/', query: {'user_id': userId});
+    if (data is Map) {
+      return UserProfile.fromJson(data.cast<String, dynamic>());
+    }
+    throw const AppException('Invalid response format from profile API');
   }
 
-  Future<void> updateProfile({
+  Future<List<TeamMember>> getTeam(int userId) async {
+    if (userId <= 0) return [];
+    try {
+      final data = await _api.get('/profile/team', query: {'user_id': userId});
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => TeamMember.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<void> updateProfile(
+    int userId, {
     String? name,
     String? mobile,
     int? age,
     String? sex,
   }) async {
-    await _api.put('/profile/update', query: _api.authQuery(), body: {
-      if (name != null) 'name': name,
-      if (mobile != null) 'mobile': mobile,
-      if (age != null) 'age': age,
-      if (sex != null) 'sex': sex,
-    });
+    if (userId <= 0) throw const AppException('Invalid user ID');
+    final payload = <String, dynamic>{};
+    if (name != null) payload['name'] = name;
+    if (mobile != null) payload['mobile'] = mobile;
+    if (age != null) payload['age'] = age;
+    if (sex != null) payload['sex'] = sex;
+
+    await _api.put('/profile/update', query: {'user_id': userId}, body: payload);
   }
 
-  Future<void> changePassword({String? oldPassword, required String newPassword}) async {
-    await _api.post('/profile/password', query: _api.authQuery(), body: {
-      if (oldPassword != null && oldPassword.isNotEmpty) 'old_password': oldPassword,
-      'new_password': newPassword,
-    });
+  Future<void> changePassword(
+    int userId, {
+    String? oldPassword,
+    required String newPassword,
+  }) async {
+    if (userId <= 0) throw const AppException('Invalid user ID');
+    final payload = <String, dynamic>{'new_password': newPassword};
+    if (oldPassword != null && oldPassword.isNotEmpty) {
+      payload['old_password'] = oldPassword;
+    }
+    await _api.post('/profile/password', query: {'user_id': userId}, body: payload);
   }
 
-  Future<String> uploadPicture(int userId, XFile file) async {
+  Future<void> uploadPicture(int userId, XFile file) async {
+    if (userId <= 0) throw const AppException('Invalid user ID');
     final bytes = await file.readAsBytes();
-    final data = await _api.upload(
+    await _api.upload(
       '/profile/picture',
       files: {'file': MultipartFile.fromBytes(bytes, filename: file.name)},
       fields: {'user_id': userId},
     );
-    return (data as Map)['picture_url']?.toString() ?? '';
   }
 
-  Future<List<TeamMember>> getTeam() async {
-    final data = await _api.get('/profile/team', query: _api.authQuery());
-    if (data is List) {
-      return data
-          .whereType<Map>()
-          .map((e) => TeamMember.fromJson(e.cast<String, dynamic>()))
-          .toList();
-    }
+  Future<void> addTeamMember(
+    int userId, {
+    required String memberEmail,
+    int? sharedCredits,
+  }) async {
+    if (userId <= 0) throw const AppException('Invalid user ID');
+    final payload = <String, dynamic>{
+      'member_email': memberEmail,
+      'shared_credits': sharedCredits,
+    };
+    await _api.post('/profile/team/add', query: {'user_id': userId}, body: payload);
+  }
+
+  Future<void> removeTeamMember(int userId, int memberId) async {
+    if (userId <= 0) throw const AppException('Invalid user ID');
+    await _api.delete('/profile/team/remove/$memberId', query: {'user_id': userId});
+  }
+
+  // --- Assets Operations ---
+  Future<List<Farm>> getFarms(int userId) async {
+    if (userId <= 0) return [];
+    try {
+      final data = await _api.get('/assets/farms', query: {'user_id': userId});
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => Farm.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      }
+    } catch (_) {}
     return [];
   }
 
-  Future<void> addTeamMember(String email, {int? sharedCredits}) async {
-    await _api.post('/profile/team/add', query: _api.authQuery(), body: {
-      'member_email': email,
-      if (sharedCredits != null) 'shared_credits': sharedCredits,
-    });
+  Future<List<Crop>> getCrops(int farmId) async {
+    try {
+      final data = await _api.get('/assets/crops', query: {'farm_id': farmId});
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => Crop.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
   }
 
-  Future<void> removeTeamMember(int memberUserId) async {
-    await _api.delete('/profile/team/remove/$memberUserId', query: _api.authQuery());
+  Future<List<TreeItem>> getTrees(int cropId) async {
+    try {
+      final data = await _api.get('/assets/trees', query: {'crop_id': cropId});
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => TreeItem.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<AssetMedia>> getMedia(String entityType, int entityId) async {
+    try {
+      final data = await _api.get(
+        '/assets/media',
+        query: {'entity_type': entityType, 'entity_id': entityId},
+      );
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => AssetMedia.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<void> createFarm(int userId, Map<String, dynamic> farmData) async {
+    await _api.post('/assets/farms', query: {'user_id': userId}, body: farmData);
+  }
+
+  Future<void> createCrop(Map<String, dynamic> cropData) async {
+    await _api.post('/assets/crops', body: cropData);
+  }
+
+  Future<void> createTree(Map<String, dynamic> treeData) async {
+    await _api.post('/assets/trees', body: treeData);
+  }
+
+  Future<void> deleteEntity(String type, int id) async {
+    final path = '/assets/${type.toLowerCase()}s/$id';
+    await _api.delete(path);
   }
 }

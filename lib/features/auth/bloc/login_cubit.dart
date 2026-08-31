@@ -90,11 +90,12 @@ class LoginCubit extends Cubit<LoginState> {
       }
     } on AppException catch (e) {
       emit(state.copyWith(status: LoginStatus.failure, error: e.message));
-    } catch (_) {
+    } catch (e) {
+      final msg = e is Exception ? e.toString().replaceAll('Exception: ', '') : 'Google sign-in failed: $e';
       emit(
         state.copyWith(
           status: LoginStatus.failure,
-          error: 'Google sign-in failed.',
+          error: msg,
         ),
       );
     }

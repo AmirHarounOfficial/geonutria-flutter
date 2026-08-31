@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart' show ChangeNotifierProvider;
@@ -12,11 +11,22 @@ import 'core/settings/settings_cubit.dart';
 import 'core/storage/secure_session.dart';
 import 'features/auth/bloc/auth_cubit.dart';
 import 'features/auth/data/auth_repository.dart';
+import 'core/logging/in_app_log_service.dart';
 import 'features/auth/data/google_auth_service.dart';
 
 Future<void> main() async {
   // Surface build/runtime errors on-screen instead of a blank page.
   ErrorWidget.builder = (details) => _StartupError(message: '${details.exception}');
+
+  FlutterError.onError = (details) {
+    InAppLogService.instance.error(
+      'FLUTTER_ERROR',
+      '${details.exception}',
+      details: details.exceptionAsString(),
+      stackTrace: details.stack?.toString(),
+    );
+    FlutterError.presentError(details);
+  };
 
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +72,11 @@ Future<void> main() async {
     unawaited(_bootstrap(settingsCubit, authCubit));
   }, (error, stack) {
     debugPrint('Uncaught zone error: $error\n$stack');
+    InAppLogService.instance.error(
+      'ZONE_ERROR',
+      '$error',
+      stackTrace: stack.toString(),
+    );
   });
 }
 

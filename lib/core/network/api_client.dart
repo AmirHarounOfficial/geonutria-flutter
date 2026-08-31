@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../config/env.dart';
 import '../error/app_exception.dart';
+import '../logging/in_app_log_service.dart';
 import '../storage/secure_session.dart';
 import 'paywall_notifier.dart';
 
@@ -31,7 +32,46 @@ class ApiClient {
       _dio = Dio(_options) {
     _dio.interceptors.add(
       InterceptorsWrapper(
+        onRequest: (options, handler) {
+          final queryStr = options.queryParameters.isNotEmpty
+              ? '\nQuery Parameters:\n${_formatJson(options.queryParameters)}'
+              : '';
+          final bodyStr = options.data != null
+              ? '\nRequest Body:\n${_formatJson(options.data)}'
+              : '';
+          InAppLogService.instance.network(
+            method: options.method,
+            url: options.uri.toString(),
+            statusCode: null,
+            message: 'Request ->',
+            details: 'Headers: ${options.headers}$queryStr$bodyStr',
+          );
+          handler.next(options);
+        },
+        onResponse: (response, handler) {
+          InAppLogService.instance.network(
+            method: response.requestOptions.method,
+            url: response.requestOptions.uri.toString(),
+            statusCode: response.statusCode,
+            message: 'Response <- OK',
+            details: 'Incoming Response Body:\n${_formatJson(response.data)}',
+          );
+          handler.next(response);
+        },
         onError: (e, handler) {
+          final respData = e.response?.data;
+          final respStr = respData != null
+              ? '\nIncoming Response Body:\n${_formatJson(respData)}'
+              : '';
+          InAppLogService.instance.network(
+            method: e.requestOptions.method,
+            url: e.requestOptions.uri.toString(),
+            statusCode: e.response?.statusCode,
+            message: 'Response Error: ${e.message ?? e.error}',
+            details:
+                'Type: ${e.type}\nStatus Code: ${e.response?.statusCode}\nError: ${e.error}$respStr',
+            isError: true,
+          );
           if (e.response?.statusCode == 402) {
             _paywall?.trigger();
             handler.reject(
@@ -162,12 +202,27 @@ class ApiClient {
         headers: {'Accept': 'text/event-stream'},
       ),
     );
-    final stream = (resp.data as ResponseBody).stream;
-    final lines = stream
-        .cast<List<int>>()
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
-    await for (final line in lines) {
+
+    Stream<String> lineStream;
+    final data = resp.data;
+    if (data is ResponseBody) {
+      lineStream = data.stream
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+    } else if (data is String) {
+      lineStream = Stream.fromIterable(data.split('\n'));
+    } else if (data is List<int>) {
+      lineStream = Stream.value(utf8.decode(data))
+          .transform(const LineSplitter());
+    } else if (data != null) {
+      lineStream = Stream.value(data.toString())
+          .transform(const LineSplitter());
+    } else {
+      return;
+    }
+
+    await for (final line in lineStream) {
       if (!line.startsWith('data:')) continue;
       final payload = line.substring(5).trim();
       if (payload.isEmpty || payload == '[DONE]') {
@@ -184,8 +239,17 @@ class ApiClient {
         if (choices is List && choices.isNotEmpty) {
           final delta = (choices.first as Map)['delta'];
           if (delta is Map) {
-            final reasoning = delta['reasoning'];
-            if (reasoning is String && reasoning.isNotEmpty) {
+            String? reasoning = delta['reasoning']?.toString();
+            if (reasoning == null || reasoning.isEmpty) {
+              final details = delta['reasoning_details'];
+              if (details is List && details.isNotEmpty) {
+                reasoning = details
+                    .whereType<Map>()
+                    .map((d) => d['text'] ?? '')
+                    .join();
+              }
+            }
+            if (reasoning != null && reasoning.isNotEmpty) {
               yield ChatToken.reasoning(reasoning);
             }
             final content = delta['content'];
@@ -259,7 +323,9 @@ class ApiClient {
           e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.unknown) {
         if (kIsWeb) {
-          final isXmlErr = e.toString().contains('XMLHttpRequest') || e.message?.contains('XMLHttpRequest') == true;
+          final isXmlErr = e.toString().contains('XMLHttpRequest') ||
+              e.message?.contains('XMLHttpRequest') == true ||
+              e.error?.toString().contains('XMLHttpRequest') == true;
           if (isXmlErr) {
             throw NetworkException(
               'Browser CORS / Network error connecting to ${Env.apiBaseUrl}. Ensure CORS preflight is configured on the server, or test on Android / iOS / Desktop.',
@@ -283,4 +349,20 @@ class ApiClient {
     if (data is String && data.isNotEmpty) return data;
     return null;
   }
+}
+
+String _formatJson(dynamic data) {
+  if (data == null) return 'null';
+  try {
+    if (data is Map || data is List) {
+      const encoder = JsonEncoder.withIndent('  ');
+      return encoder.convert(data);
+    }
+    if (data is String && (data.startsWith('{') || data.startsWith('['))) {
+      final decoded = jsonDecode(data);
+      const encoder = JsonEncoder.withIndent('  ');
+      return encoder.convert(decoded);
+    }
+  } catch (_) {}
+  return '$data';
 }
