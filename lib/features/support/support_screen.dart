@@ -126,7 +126,6 @@ class _SupportViewState extends State<_SupportView> {
                             'Report IoT Sensor issue',
                             'Subscription & Top-up help',
                             'Irrigation Automation inquiry',
-                            'Leaf Doctor help',
                           ])
                             Padding(
                               padding: EdgeInsets.only(right: 6),

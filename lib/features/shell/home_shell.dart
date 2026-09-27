@@ -25,7 +25,6 @@ import '../support/support_screen.dart';
 import '../yield_predict/yield_screen.dart';
 import '../admin/ui/admin_screen.dart';
 import '../control/ui/control_screen.dart';
-import '../leaf_doctor/leaf_doctor_screen.dart';
 import '../farm_context/farm_hierarchy_cubit.dart';
 import '../farm_context/global_context_bar.dart';
 
@@ -118,12 +117,6 @@ class _HomeShellState extends State<HomeShell> {
       'nav_control',
       Icons.bolt_outlined,
       (c) => const ControlScreen(),
-      primary: true,
-    ),
-    _Feature(
-      'nav_leaf_doctor',
-      Icons.local_florist_outlined,
-      (c) => const LeafDoctorScreen(),
       primary: true,
     ),
     _Feature(

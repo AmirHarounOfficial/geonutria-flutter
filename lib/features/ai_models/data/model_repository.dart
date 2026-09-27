@@ -3,18 +3,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/network/api_client.dart';
 
-/// Result of a leaf/palm diagnosis.
-class LeafResult {
-  const LeafResult({
-    required this.diagnosis,
-    required this.confidence,
-    this.isolatedImage,
-  });
-  final String diagnosis;
-  final double confidence; // 0-100
-  final String? isolatedImage; // data:image/webp;base64,... (palm/general glow)
-}
-
 class SoilResult {
   const SoilResult({required this.soilType, required this.confidence});
   final String soilType;
@@ -42,57 +30,13 @@ class ModelRepository {
 
   Future<MultipartFile> _multipart(XFile file) async {
     final bytes = await file.readAsBytes();
-    final filename =
-        (file.name.isNotEmpty && file.name != 'blob') ? file.name : 'soil_image.jpg';
+    final filename = (file.name.isNotEmpty && file.name != 'blob')
+        ? file.name
+        : 'soil_image.jpg';
     return MultipartFile.fromBytes(
       bytes,
       filename: filename,
       contentType: DioMediaType('image', 'jpeg'),
-    );
-  }
-
-  /// Palm flow: `POST /diagnose-palm-disease` (seg + classify in one call).
-  Future<LeafResult> diagnosePalm(int userId, XFile file) async {
-    final data = await _api.upload(
-      '/diagnose-palm-disease',
-      files: {'file': await _multipart(file)},
-      fields: {'user_id': userId},
-    );
-    final map = (data as Map).cast<String, dynamic>();
-    if (map['status'] == 'error') {
-      throw Exception(map['message'] ?? 'No palm leaf detected');
-    }
-    return LeafResult(
-      diagnosis: '${map['diagnosis']}',
-      confidence: (map['diagnosis_confidence'] as num?)?.toDouble() ?? 0,
-      isolatedImage: map['isolated_mask_image'] as String?,
-    );
-  }
-
-  /// General leaf flow: segment (for the glow image) then classify.
-  Future<LeafResult> diagnoseGeneralLeaf(int userId, XFile file) async {
-    String? glow;
-    final segData = await _api.upload(
-      '/segment-general-leaf',
-      files: {'file': await _multipart(file)},
-      fields: {'user_id': userId},
-    );
-    final segMap = (segData as Map).cast<String, dynamic>();
-    if (segMap['status'] == 'error') {
-      throw Exception(segMap['message'] ?? 'No leaves detected');
-    }
-    glow = segMap['isolated_mask_image'] as String?;
-
-    final clsData = await _api.upload(
-      '/diagnose-leaf',
-      files: {'file': await _multipart(file)},
-      fields: {'user_id': userId},
-    );
-    final clsMap = (clsData as Map).cast<String, dynamic>();
-    return LeafResult(
-      diagnosis: '${clsMap['diagnosis']}',
-      confidence: (clsMap['confidence'] as num?)?.toDouble() ?? 0,
-      isolatedImage: glow,
     );
   }
 
@@ -122,26 +66,31 @@ class ModelRepository {
     required double rainfall,
     required String soilType,
   }) async {
-    final data = await _api.post('/recommend-crops', body: {
-      'N': n,
-      'P': p,
-      'K': k,
-      'temperature': temperature,
-      'humidity': humidity,
-      'ph': ph,
-      'rainfall': rainfall,
-      'soil_type': soilType,
-      'user_id': userId,
-    });
+    final data = await _api.post(
+      '/recommend-crops',
+      body: {
+        'N': n,
+        'P': p,
+        'K': k,
+        'temperature': temperature,
+        'humidity': humidity,
+        'ph': ph,
+        'rainfall': rainfall,
+        'soil_type': soilType,
+        'user_id': userId,
+      },
+    );
     final map = (data as Map).cast<String, dynamic>();
     final list = map['top_7_crops'];
     if (list is! List) return [];
     return list
         .whereType<Map>()
-        .map((e) => CropRec(
-              crop: '${e['crop']}',
-              confidence: (e['confidence'] as num?)?.toDouble() ?? 0,
-            ))
+        .map(
+          (e) => CropRec(
+            crop: '${e['crop']}',
+            confidence: (e['confidence'] as num?)?.toDouble() ?? 0,
+          ),
+        )
         .toList();
   }
 

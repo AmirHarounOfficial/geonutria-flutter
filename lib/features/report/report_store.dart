@@ -16,7 +16,6 @@ class ReportStore extends ChangeNotifier {
     'weather': 'Live weather',
     'history': 'Historical readings',
     'device_map': 'Device satellite imagery',
-    'leaf': 'Leaf diagnosis',
     'soil': 'Soil analysis',
     'crop': 'Crop recommendation',
     'yield': 'Yield prediction',
@@ -31,7 +30,6 @@ class ReportStore extends ChangeNotifier {
     'weather': 'include_weather',
     'history': 'include_history',
     'device_map': 'include_device_map',
-    'leaf': 'include_leaf_ai',
     'soil': 'include_soil_ai',
     'crop': 'include_crop_ai',
     'yield': 'include_yield_ai',
@@ -180,15 +178,6 @@ class ReportStore extends ChangeNotifier {
           });
         }
       }
-    } else if ((path == '/diagnose-leaf' || path == '/diagnose-palm-disease') &&
-        response is Map) {
-      record('leaf', {
-        'leaf_diagnosis': {
-          ...Map<String, dynamic>.from(response),
-          'confidence':
-              response['diagnosis_confidence'] ?? response['confidence'],
-        },
-      });
     } else if (path == '/satellite-analysis' && response is Map) {
       final meta = response['meta'] as Map? ?? {};
       record('satellite', {
@@ -299,6 +288,8 @@ class ReportStore extends ChangeNotifier {
       'farm_name': farmName,
       'farmer_name': farmerName,
       'options': {
+        // The server defaults this removed mobile feature to enabled.
+        'include_leaf_ai': false,
         for (final e in _options.entries) e.value: enabled.contains(e.key),
         'language': lang,
       },

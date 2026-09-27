@@ -20,6 +20,7 @@ void main() {
     expect(data['device_imagery'], hasLength(1));
     expect(data['device_imagery'][0]['device_id'], 2);
     expect(data['options']['include_device_map'], isTrue);
+    expect(data['options']['include_leaf_ai'], isFalse);
     store.useUser(null);
     expect(store.available('en'), isEmpty);
   });

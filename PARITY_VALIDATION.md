@@ -59,3 +59,9 @@ A controlled live comparison confirmed the cause: the same synthetic PNG sent as
 
 - Full regression suite: 41 tests passed before release packaging.
 - Android release signing still uses the repository's existing debug signing configuration. The release-mode APK is suitable for testing/sideloading; production publishing requires the application's production signing setup.
+
+## Leaf Doctor removal
+
+Removed the mobile Leaf Doctor screen, cubit, diagnosis repository methods, navigation entry, support shortcut, and report selection/capture. Report requests explicitly send `include_leaf_ai: false` because the unchanged backend defaults it to true. Shared soil classification, satellite palm counting, and general AI features remain available.
+
+All 41 tests passed. Web and release APK builds succeeded for 1.0.0+3. Live browser inspection confirmed Leaf Doctor is absent from the bottom navigation and drawer. Release signing continues to use the existing debug key.

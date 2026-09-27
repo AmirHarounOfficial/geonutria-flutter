@@ -500,7 +500,6 @@ const arabicUiLabels = <String, String>{
   "Report IoT Sensor issue": "الإبلاغ عن مشكلة في مستشعرات المزرعة",
   "Subscription & Top-up help": "المساعدة في الاشتراك وشحن الرصيد",
   "Irrigation Automation inquiry": "استفسار عن أتمتة الري",
-  "Leaf Doctor help": "المساعدة في طبيب الأوراق",
   "Thanks for reaching out! A human agent will be with you shortly.":
       "شكراً لتواصلك معنا! سيتواصل معك أحد ممثلي الدعم قريباً.",
   "Account Number": "رقم الحساب",
