@@ -13,13 +13,13 @@ class ConsultantSelection {
     Set<int>? yieldPreds,
     Set<int>? satellites,
     Set<int>? aerialPalms,
-  })  : deviceIds = deviceIds ?? {},
-        leafScans = leafScans ?? {},
-        soilScans = soilScans ?? {},
-        cropRecs = cropRecs ?? {},
-        yieldPreds = yieldPreds ?? {},
-        satellites = satellites ?? {},
-        aerialPalms = aerialPalms ?? {};
+  }) : deviceIds = deviceIds ?? {},
+       leafScans = leafScans ?? {},
+       soilScans = soilScans ?? {},
+       cropRecs = cropRecs ?? {},
+       yieldPreds = yieldPreds ?? {},
+       satellites = satellites ?? {},
+       aerialPalms = aerialPalms ?? {};
 
   bool includeUserInfo;
   bool includeMacroWeather;
@@ -39,7 +39,10 @@ class ConsultantRepository {
   final ApiClient _api;
 
   Future<ConsultantOptions> getOptions() async {
-    final data = await _api.get('/ai-consultant/options', query: _api.authQuery());
+    final data = await _api.get(
+      '/ai-consultant/options',
+      query: _api.authQuery(),
+    );
     return ConsultantOptions.fromJson((data as Map).cast<String, dynamic>());
   }
 
@@ -48,20 +51,25 @@ class ConsultantRepository {
     required int userId,
     required List<ChatMessage> history,
     required ConsultantSelection selection,
+    required String lang,
   }) async {
-    final data = await _api.post('/ai-consultant/start', body: {
-      'history': [for (final m in history) m.toJson()],
-      'user_id': userId,
-      'include_user_info': selection.includeUserInfo,
-      'include_macro_weather': selection.includeMacroWeather,
-      'selected_device_ids': selection.deviceIds.toList(),
-      'selected_leaf_scans': selection.leafScans.toList(),
-      'selected_soil_scans': selection.soilScans.toList(),
-      'selected_crop_recs': selection.cropRecs.toList(),
-      'selected_yield_preds': selection.yieldPreds.toList(),
-      'selected_satellites': selection.satellites.toList(),
-      'selected_aerial_palms': selection.aerialPalms.toList(),
-    });
+    final data = await _api.post(
+      '/ai-consultant/start',
+      body: {
+        'history': [for (final m in history) m.toJson()],
+        'user_id': userId,
+        'lang': lang,
+        'include_user_info': selection.includeUserInfo,
+        'include_macro_weather': selection.includeMacroWeather,
+        'selected_device_ids': selection.deviceIds.toList(),
+        'selected_leaf_scans': selection.leafScans.toList(),
+        'selected_soil_scans': selection.soilScans.toList(),
+        'selected_crop_recs': selection.cropRecs.toList(),
+        'selected_yield_preds': selection.yieldPreds.toList(),
+        'selected_satellites': selection.satellites.toList(),
+        'selected_aerial_palms': selection.aerialPalms.toList(),
+      },
+    );
     final map = (data as Map).cast<String, dynamic>();
     return '${map['task_id']}';
   }

@@ -142,7 +142,7 @@ class _WizardViewState extends State<_WizardView> {
             await Navigator.of(ctx).push(
               MaterialPageRoute(
                 builder: (_) =>
-                    BlocProvider.value(value: cubit, child: const OtpScreen()),
+                    BlocProvider.value(value: cubit, child: OtpScreen()),
               ),
             );
           } else if (state.status == RegisterStatus.success &&
@@ -152,7 +152,9 @@ class _WizardViewState extends State<_WizardView> {
               state.error != null) {
             ScaffoldMessenger.of(ctx)
               ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(content: Text(state.error!)));
+              ..showSnackBar(
+                SnackBar(content: Text(context.errorText(state.error!))),
+              );
           }
         },
         builder: (ctx, state) {
@@ -162,7 +164,7 @@ class _WizardViewState extends State<_WizardView> {
               _ProgressBar(step: _step),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(20),
                   child: switch (_step) {
                     0 => _stepIdentity(),
                     1 => _stepEntity(),
@@ -172,7 +174,7 @@ class _WizardViewState extends State<_WizardView> {
               ),
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
                   child: Row(
                     children: [
                       if (_step > 0)
@@ -186,14 +188,14 @@ class _WizardViewState extends State<_WizardView> {
                             ),
                           ),
                         ),
-                      if (_step > 0) const SizedBox(width: 12),
+                      if (_step > 0) SizedBox(width: 12),
                       Expanded(
                         child: FilledButton(
                           onPressed: busy
                               ? null
                               : (_step < 2 ? _next : _submit),
                           child: busy
-                              ? const SizedBox(
+                              ? SizedBox(
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
@@ -201,7 +203,11 @@ class _WizardViewState extends State<_WizardView> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : Text(_step < 2 ? 'Next' : 'Complete setup'),
+                              : Text(
+                                  context.ui(
+                                    _step < 2 ? 'Next' : 'Complete setup',
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -231,7 +237,7 @@ class _WizardViewState extends State<_WizardView> {
                   validator: _required,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: TextFormField(
                   controller: _lastName,
@@ -243,7 +249,7 @@ class _WizardViewState extends State<_WizardView> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextFormField(
             controller: _email,
             readOnly: _isGoogle,
@@ -252,7 +258,7 @@ class _WizardViewState extends State<_WizardView> {
             validator: _required,
           ),
           if (!_isGoogle) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             TextFormField(
               controller: _password,
               obscureText: true,
@@ -261,14 +267,14 @@ class _WizardViewState extends State<_WizardView> {
                   (v == null || v.length < 6) ? '≥ 6 characters' : null,
             ),
           ],
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextFormField(
             controller: _phone,
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(labelText: context.tr('phone_number')),
             validator: _required,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           TextFormField(
             controller: _address,
             decoration: InputDecoration(labelText: context.tr('address')),
@@ -286,40 +292,54 @@ class _WizardViewState extends State<_WizardView> {
         children: [
           DropdownButtonFormField<String>(
             initialValue: _entityType,
-            decoration: const InputDecoration(labelText: 'Entity type'),
-            items: const [
-              DropdownMenuItem(value: 'Individual', child: Text('Individual')),
-              DropdownMenuItem(value: 'Company', child: Text('Company')),
+            decoration: InputDecoration(labelText: context.ui('Entity type')),
+            items: [
+              DropdownMenuItem(
+                value: 'Individual',
+                child: Text(context.ui('Individual')),
+              ),
+              DropdownMenuItem(
+                value: 'Company',
+                child: Text(context.ui('Company')),
+              ),
             ],
             onChanged: (v) => setState(() => _entityType = v ?? 'Individual'),
           ),
           if (_entityType == 'Company') ...[
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             TextFormField(
               controller: _companyName,
-              decoration: const InputDecoration(labelText: 'Company name'),
+              decoration: InputDecoration(
+                labelText: context.ui('Company name'),
+              ),
               validator: _required,
             ),
           ],
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: TextFormField(
                   controller: _age,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Age'),
+                  decoration: InputDecoration(labelText: context.ui('Age')),
                   validator: _required,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
                   initialValue: _gender,
-                  decoration: const InputDecoration(labelText: 'Gender'),
-                  items: const [
-                    DropdownMenuItem(value: 'Male', child: Text('Male')),
-                    DropdownMenuItem(value: 'Female', child: Text('Female')),
+                  decoration: InputDecoration(labelText: context.ui('Gender')),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'Male',
+                      child: Text(context.ui('Male')),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Female',
+                      child: Text(context.ui('Female')),
+                    ),
                   ],
                   onChanged: (v) => setState(() => _gender = v ?? 'Male'),
                 ),
@@ -336,10 +356,10 @@ class _WizardViewState extends State<_WizardView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Farms & locations (optional)',
+          context.ui('Farms & locations (optional)'),
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         for (var i = 0; i < _farms.length; i++)
           _FarmEditor(
             farm: _farms[i],
@@ -348,11 +368,11 @@ class _WizardViewState extends State<_WizardView> {
             onRemove: () => setState(() => _farms.removeAt(i)),
             onChanged: () => setState(() {}),
           ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () => setState(() => _farms.add(_FarmDraft())),
-          icon: const Icon(Icons.add),
-          label: const Text('Add another farm'),
+          icon: Icon(Icons.add),
+          label: Text(context.ui('Add another farm')),
         ),
       ],
     );
@@ -369,14 +389,14 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
           for (var i = 0; i < 3; i++)
             Expanded(
               child: Container(
                 height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
+                margin: EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: step >= i
                       ? Theme.of(context).colorScheme.primary
@@ -412,7 +432,7 @@ class _FarmEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -420,13 +440,13 @@ class _FarmEditor extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Farm ${index + 1}',
+                    '${context.ui('Farm')} ${index + 1}',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
                 if (canRemove)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline),
+                    icon: Icon(Icons.delete_outline),
                     onPressed: onRemove,
                   ),
               ],
@@ -437,20 +457,24 @@ class _FarmEditor extends StatelessWidget {
                   flex: 2,
                   child: TextField(
                     controller: farm.name,
-                    decoration: const InputDecoration(labelText: 'Farm name'),
+                    decoration: InputDecoration(
+                      labelText: context.ui('Farm name'),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: farm.area,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Area (Ha)'),
+                    decoration: InputDecoration(
+                      labelText: context.ui('Area (Ha)'),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             MapLocationPicker(
               label: 'Farm location',
               latitude: farm.lat,
@@ -461,8 +485,11 @@ class _FarmEditor extends StatelessWidget {
                 onChanged();
               },
             ),
-            const SizedBox(height: 12),
-            Text('Crops', style: Theme.of(context).textTheme.labelLarge),
+            SizedBox(height: 12),
+            Text(
+              context.ui('Crops'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             for (var i = 0; i < farm.crops.length; i++)
               _CropEditor(
                 crop: farm.crops[i],
@@ -476,8 +503,8 @@ class _FarmEditor extends StatelessWidget {
                 farm.crops.add(_CropDraft());
                 onChanged();
               },
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add crop'),
+              icon: Icon(Icons.add, size: 18),
+              label: Text(context.ui('Add crop')),
             ),
           ],
         ),
@@ -505,7 +532,7 @@ class _CropEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: EdgeInsets.only(top: 8),
       child: Column(
         children: [
           Row(
@@ -514,19 +541,21 @@ class _CropEditor extends StatelessWidget {
                 flex: 2,
                 child: TextField(
                   controller: crop.name,
-                  decoration: const InputDecoration(labelText: 'Crop name'),
+                  decoration: InputDecoration(
+                    labelText: context.ui('Crop name'),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: TextField(
                   controller: crop.area,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Area'),
+                  decoration: InputDecoration(labelText: context.ui('Area')),
                 ),
               ),
               if (onRemove != null)
-                IconButton(icon: const Icon(Icons.close), onPressed: onRemove),
+                IconButton(icon: Icon(Icons.close), onPressed: onRemove),
             ],
           ),
           Row(
@@ -538,12 +567,12 @@ class _CropEditor extends StatelessWidget {
                   onChanged();
                 },
               ),
-              const Expanded(child: Text('Tree / palm crop?')),
+              Expanded(child: Text(context.ui('Tree / palm crop?'))),
             ],
           ),
           if (crop.isTree)
             Padding(
-              padding: const EdgeInsetsDirectional.only(start: 12),
+              padding: EdgeInsetsDirectional.only(start: 12),
               child: Column(
                 children: [
                   for (var i = 0; i < crop.trees.length; i++)
@@ -552,22 +581,22 @@ class _CropEditor extends StatelessWidget {
                         Expanded(
                           child: TextField(
                             controller: crop.trees[i].name,
-                            decoration: const InputDecoration(
-                              labelText: 'Tree name',
+                            decoration: InputDecoration(
+                              labelText: context.ui('Tree name'),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: TextField(
                             controller: crop.trees[i].code,
-                            decoration: const InputDecoration(
-                              labelText: 'Code',
+                            decoration: InputDecoration(
+                              labelText: context.ui('Code'),
                             ),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close),
+                          icon: Icon(Icons.close),
                           onPressed: () {
                             crop.trees.removeAt(i);
                             onChanged();
@@ -580,8 +609,8 @@ class _CropEditor extends StatelessWidget {
                       crop.trees.add(_TreeDraft());
                       onChanged();
                     },
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Add tree'),
+                    icon: Icon(Icons.add, size: 16),
+                    label: Text(context.ui('Add tree')),
                   ),
                 ],
               ),

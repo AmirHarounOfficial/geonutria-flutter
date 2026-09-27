@@ -29,13 +29,12 @@ class LeafState extends Equatable {
     LeafResult? result,
     String? error,
     bool clearResult = false,
-  }) =>
-      LeafState(
-        status: status ?? this.status,
-        mode: mode ?? this.mode,
-        result: clearResult ? null : (result ?? this.result),
-        error: error,
-      );
+  }) => LeafState(
+    status: status ?? this.status,
+    mode: mode ?? this.mode,
+    result: clearResult ? null : (result ?? this.result),
+    error: error,
+  );
 
   @override
   List<Object?> get props => [status, mode, result, error];
@@ -47,13 +46,20 @@ class LeafDoctorCubit extends Cubit<LeafState> {
   final ModelRepository _repo;
   final AuthCubit _auth;
 
-  void setMode(LeafMode mode) =>
-      emit(state.copyWith(mode: mode, clearResult: true, status: LeafStatus.idle));
+  void setMode(LeafMode mode) => emit(
+    state.copyWith(mode: mode, clearResult: true, status: LeafStatus.idle),
+  );
 
   Future<void> diagnose(XFile file) async {
     final uid = _auth.state.userId;
     if (uid == null) return;
-    emit(state.copyWith(status: LeafStatus.processing, error: null, clearResult: true));
+    emit(
+      state.copyWith(
+        status: LeafStatus.processing,
+        error: null,
+        clearResult: true,
+      ),
+    );
     try {
       final result = state.mode == LeafMode.palm
           ? await _repo.diagnosePalm(uid, file)
@@ -66,9 +72,12 @@ class LeafDoctorCubit extends Cubit<LeafState> {
     } on AppException catch (e) {
       emit(state.copyWith(status: LeafStatus.failure, error: e.message));
     } catch (e) {
-      emit(state.copyWith(
+      emit(
+        state.copyWith(
           status: LeafStatus.failure,
-          error: e.toString().replaceFirst('Exception: ', '')));
+          error: e.toString().replaceFirst('Exception: ', ''),
+        ),
+      );
     }
   }
 }

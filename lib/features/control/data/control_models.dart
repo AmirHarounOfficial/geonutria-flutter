@@ -46,23 +46,23 @@ class Actuator extends Equatable {
       type == ActuatorType.led || type == ActuatorType.rgb;
   bool get supportsColour => type == ActuatorType.rgb;
 
-  int get brightness => (state['brightness'] as num?)?.toInt() ?? 100;
+  int get brightness => _toInt(state['brightness']) ?? 100;
 
   ({int r, int g, int b}) get colour => (
-    r: (state['r'] as num?)?.toInt() ?? 255,
-    g: (state['g'] as num?)?.toInt() ?? 200,
-    b: (state['b'] as num?)?.toInt() ?? 100,
+    r: _toInt(state['r']) ?? 255,
+    g: _toInt(state['g']) ?? 200,
+    b: _toInt(state['b']) ?? 100,
   );
 
   factory Actuator.fromJson(Map<String, dynamic> j) => Actuator(
-    id: (j['id'] as num).toInt(),
+    id: _toInt(j['id']) ?? 0,
     name: (j['device_name'] ?? 'Actuator ${j['id']}').toString(),
     type: actuatorTypeFrom(j['device_type']?.toString()),
     state: _asMap(j['state']),
     publishTopic: j['mqtt_publish_topic']?.toString(),
     subscribeTopic: j['mqtt_subscribe_topic']?.toString(),
     location: j['installed_location']?.toString(),
-    farmId: (j['farm_id'] as num?)?.toInt(),
+    farmId: _toInt(j['farm_id']),
   );
 
   static Map<String, dynamic> _asMap(dynamic v) {
@@ -201,17 +201,16 @@ class Schedule extends Equatable {
   final String? actuatorType;
 
   String get action => (actionPayload['action'] ?? 'on').toString();
-  int? get durationMinutes =>
-      (actionPayload['duration_minutes'] as num?)?.toInt();
+  int? get durationMinutes => _toInt(actionPayload['duration_minutes']);
 
   String? get sensor => thresholdConfig?['sensor']?.toString();
   String? get operator => thresholdConfig?['operator']?.toString();
-  double? get threshold => (thresholdConfig?['value'] as num?)?.toDouble();
-  int? get sourceDeviceId => (thresholdConfig?['device_id'] as num?)?.toInt();
+  double? get threshold => _toDouble(thresholdConfig?['value']);
+  int? get sourceDeviceId => _toInt(thresholdConfig?['device_id']);
 
   factory Schedule.fromJson(Map<String, dynamic> j) => Schedule(
-    id: (j['id'] as num?)?.toInt(),
-    actuatorId: (j['actuator_id'] as num?)?.toInt() ?? 0,
+    id: _toInt(j['id']),
+    actuatorId: _toInt(j['actuator_id']) ?? 0,
     name: j['schedule_name']?.toString(),
     triggerType: triggerTypeFrom(j['trigger_type']?.toString()),
     cronExpression: j['cron_expression']?.toString(),
@@ -323,4 +322,16 @@ String compileCron({
         reverse[int.tryParse(d.trim())]!,
   };
   return (hour: hour, minute: minute, days: days);
+}
+
+int? _toInt(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toInt();
+  return int.tryParse('$v');
+}
+
+double? _toDouble(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse('$v');
 }

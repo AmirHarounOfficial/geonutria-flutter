@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -192,6 +193,7 @@ class AnalysisContext extends Equatable {
 /// localStorage — it describes the farm, not the reading, so re-entering it on
 /// every analysis would be busywork.
 class AnalysisContextStore {
+  static final changes = ValueNotifier<int>(0);
   AnalysisContextStore({FlutterSecureStorage? storage})
     : _storage = storage ?? const FlutterSecureStorage();
 
@@ -213,6 +215,8 @@ class AnalysisContextStore {
     }
   }
 
-  Future<void> write(AnalysisContext ctx) =>
-      _storage.write(key: _key, value: jsonEncode(ctx.toJson()));
+  Future<void> write(AnalysisContext ctx) async {
+    await _storage.write(key: _key, value: jsonEncode(ctx.toJson()));
+    changes.value++;
+  }
 }

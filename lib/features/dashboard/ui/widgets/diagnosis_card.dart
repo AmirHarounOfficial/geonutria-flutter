@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/config/app_colors.dart';
@@ -35,7 +36,7 @@ class DiagnosisCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    title ?? 'AI Health Diagnosis',
+                    title ?? context.ui('AI Health Diagnosis'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -49,7 +50,7 @@ class DiagnosisCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    diagnosis.status,
+                    context.ui(diagnosis.status),
                     style: TextStyle(color: color, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -57,9 +58,21 @@ class DiagnosisCard extends StatelessWidget {
             ),
             if (probs.isNotEmpty) ...[
               const SizedBox(height: 16),
-              _ProbRow('Healthy', probs['Healthy'] ?? 0, AppColors.success),
-              _ProbRow('Moderate', probs['Moderate'] ?? 0, AppColors.warning),
-              _ProbRow('High Stress', probs['High'] ?? 0, AppColors.danger),
+              _ProbRow(
+                context.ui('Healthy'),
+                probs['Healthy'] ?? 0,
+                AppColors.success,
+              ),
+              _ProbRow(
+                context.ui('Moderate'),
+                probs['Moderate'] ?? 0,
+                AppColors.warning,
+              ),
+              _ProbRow(
+                context.ui('High Stress'),
+                probs['High'] ?? 0,
+                AppColors.danger,
+              ),
             ],
           ],
         ),

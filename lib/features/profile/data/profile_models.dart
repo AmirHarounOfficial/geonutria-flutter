@@ -5,16 +5,22 @@ import '../../../core/config/env.dart';
 /// Helper to format profile image URLs exactly like `getFullImageUrl` in the dashboard (`ProfileView.js`).
 String resolveProfileImageUrl(String? url, {String defaultName = 'User'}) {
   if (url == null || url.trim().isEmpty) {
-    final encodedName = Uri.encodeComponent(defaultName.isNotEmpty ? defaultName : 'User');
+    final encodedName = Uri.encodeComponent(
+      defaultName.isNotEmpty ? defaultName : 'User',
+    );
     return 'https://ui-avatars.com/api/?name=$encodedName&background=C47A2C&color=fff';
   }
   var clean = url.trim();
   if (clean.contains('127.0.0.1:8009') || clean.contains('localhost:8009')) {
-    clean = clean.replaceAll('http://127.0.0.1:8009', '').replaceAll('http://localhost:8009', '');
+    clean = clean
+        .replaceAll('http://127.0.0.1:8009', '')
+        .replaceAll('http://localhost:8009', '');
     if (!clean.startsWith('/')) clean = '/$clean';
     return '${Env.staticBaseUrl}$clean';
   }
-  if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('data:')) {
+  if (clean.startsWith('http://') ||
+      clean.startsWith('https://') ||
+      clean.startsWith('data:')) {
     return clean;
   }
   final path = clean.startsWith('/') ? clean : '/$clean';
@@ -59,15 +65,15 @@ class UserProfile extends Equatable {
   factory UserProfile.fromJson(Map<String, dynamic> j) {
     final rawId = j['id'] ?? j['user_id'];
     return UserProfile(
-      id: (rawId as num?)?.toInt() ?? 0,
+      id: _toInt(rawId) ?? 0,
       name: (j['name'] ?? 'User').toString(),
       email: (j['email'] ?? '').toString(),
       mobile: (j['mobile'] ?? '').toString(),
-      age: (j['age'] as num?)?.toInt(),
+      age: _toInt(j['age']),
       sex: (j['sex'] == null || j['sex'].toString().isEmpty)
           ? 'Male'
           : j['sex'].toString(),
-      aiCredits: (j['ai_credits'] as num?)?.toInt() ?? 0,
+      aiCredits: _toInt(j['ai_credits']) ?? 0,
       subscriptionPlan: (j['subscription_plan'] ?? 'Free').toString(),
       picture: (j['picture'] ?? '').toString(),
       hasPassword: j['has_password'] != false,
@@ -77,18 +83,18 @@ class UserProfile extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        email,
-        mobile,
-        age,
-        sex,
-        aiCredits,
-        subscriptionPlan,
-        picture,
-        hasPassword,
-        role,
-      ];
+    id,
+    name,
+    email,
+    mobile,
+    age,
+    sex,
+    aiCredits,
+    subscriptionPlan,
+    picture,
+    hasPassword,
+    role,
+  ];
 }
 
 class TeamMember extends Equatable {
@@ -109,12 +115,12 @@ class TeamMember extends Equatable {
   String get avatarUrl => resolveProfileImageUrl(picture, defaultName: name);
 
   factory TeamMember.fromJson(Map<String, dynamic> j) => TeamMember(
-        memberId: (j['member_id'] as num?)?.toInt() ?? (j['id'] as num?)?.toInt() ?? 0,
-        name: (j['name'] ?? 'Member').toString(),
-        email: (j['email'] ?? '').toString(),
-        picture: (j['picture'] ?? '').toString(),
-        sharedCredits: (j['shared_credits'] as num?)?.toInt() ?? 0,
-      );
+    memberId: _toInt(j['member_id']) ?? _toInt(j['id']) ?? 0,
+    name: (j['name'] ?? 'Member').toString(),
+    email: (j['email'] ?? '').toString(),
+    picture: (j['picture'] ?? '').toString(),
+    sharedCredits: _toInt(j['shared_credits']) ?? 0,
+  );
 
   @override
   List<Object?> get props => [memberId, name, email, picture, sharedCredits];
@@ -138,16 +144,23 @@ class Farm extends Equatable {
   final double longitude;
 
   factory Farm.fromJson(Map<String, dynamic> j) => Farm(
-        id: (j['id'] as num?)?.toInt() ?? 0,
-        farmName: (j['farm_name'] ?? 'Unnamed Farm').toString(),
-        address: (j['address'] ?? '').toString(),
-        totalArea: (j['total_area'] as num?)?.toDouble() ?? 0.0,
-        latitude: (j['latitude'] as num?)?.toDouble() ?? 30.0444,
-        longitude: (j['longitude'] as num?)?.toDouble() ?? 31.2357,
-      );
+    id: _toInt(j['id']) ?? 0,
+    farmName: (j['farm_name'] ?? 'Unnamed Farm').toString(),
+    address: (j['address'] ?? '').toString(),
+    totalArea: _toDouble(j['total_area']) ?? 0.0,
+    latitude: _toDouble(j['latitude']) ?? 30.0444,
+    longitude: _toDouble(j['longitude']) ?? 31.2357,
+  );
 
   @override
-  List<Object?> get props => [id, farmName, address, totalArea, latitude, longitude];
+  List<Object?> get props => [
+    id,
+    farmName,
+    address,
+    totalArea,
+    latitude,
+    longitude,
+  ];
 }
 
 class Crop extends Equatable {
@@ -174,29 +187,29 @@ class Crop extends Equatable {
   final double yieldCapacity;
 
   factory Crop.fromJson(Map<String, dynamic> j) => Crop(
-        id: (j['id'] as num?)?.toInt() ?? 0,
-        farmId: (j['farm_id'] as num?)?.toInt() ?? 0,
-        cropName: (j['crop_name'] ?? 'Crop').toString(),
-        cropCategory: (j['crop_category'] ?? 'Cereal').toString(),
-        plantedArea: (j['planted_area'] as num?)?.toDouble() ?? 0.0,
-        age: (j['age'] as num?)?.toInt() ?? 0,
-        waterConsumption: (j['water_consumption'] as num?)?.toDouble() ?? 0.0,
-        healthStatus: (j['health_status'] ?? 'Healthy').toString(),
-        yieldCapacity: (j['yield_capacity'] as num?)?.toDouble() ?? 0.0,
-      );
+    id: _toInt(j['id']) ?? 0,
+    farmId: _toInt(j['farm_id']) ?? 0,
+    cropName: (j['crop_name'] ?? 'Crop').toString(),
+    cropCategory: (j['crop_category'] ?? 'Cereal').toString(),
+    plantedArea: _toDouble(j['planted_area']) ?? 0.0,
+    age: _toInt(j['age']) ?? 0,
+    waterConsumption: _toDouble(j['water_consumption']) ?? 0.0,
+    healthStatus: (j['health_status'] ?? 'Healthy').toString(),
+    yieldCapacity: _toDouble(j['yield_capacity']) ?? 0.0,
+  );
 
   @override
   List<Object?> get props => [
-        id,
-        farmId,
-        cropName,
-        cropCategory,
-        plantedArea,
-        age,
-        waterConsumption,
-        healthStatus,
-        yieldCapacity,
-      ];
+    id,
+    farmId,
+    cropName,
+    cropCategory,
+    plantedArea,
+    age,
+    waterConsumption,
+    healthStatus,
+    yieldCapacity,
+  ];
 }
 
 class TreeItem extends Equatable {
@@ -227,51 +240,61 @@ class TreeItem extends Equatable {
   final double yieldCapacity;
 
   factory TreeItem.fromJson(Map<String, dynamic> j) => TreeItem(
-        id: (j['id'] as num?)?.toInt() ?? 0,
-        cropId: (j['crop_id'] as num?)?.toInt() ?? 0,
-        treeName: (j['tree_name'] ?? 'Tree').toString(),
-        treeCode: (j['tree_code'] ?? '').toString(),
-        area: (j['area'] as num?)?.toDouble() ?? 0.0,
-        latitude: (j['latitude'] as num?)?.toDouble() ?? 30.0444,
-        longitude: (j['longitude'] as num?)?.toDouble() ?? 31.2357,
-        age: (j['age'] as num?)?.toInt() ?? 0,
-        waterConsumption: (j['water_consumption'] as num?)?.toDouble() ?? 0.0,
-        healthStatus: (j['health_status'] ?? 'Healthy').toString(),
-        yieldCapacity: (j['yield_capacity'] as num?)?.toDouble() ?? 0.0,
-      );
+    id: _toInt(j['id']) ?? 0,
+    cropId: _toInt(j['crop_id']) ?? 0,
+    treeName: (j['tree_name'] ?? 'Tree').toString(),
+    treeCode: (j['tree_code'] ?? '').toString(),
+    area: _toDouble(j['area']) ?? 0.0,
+    latitude: _toDouble(j['latitude']) ?? 30.0444,
+    longitude: _toDouble(j['longitude']) ?? 31.2357,
+    age: _toInt(j['age']) ?? 0,
+    waterConsumption: _toDouble(j['water_consumption']) ?? 0.0,
+    healthStatus: (j['health_status'] ?? 'Healthy').toString(),
+    yieldCapacity: _toDouble(j['yield_capacity']) ?? 0.0,
+  );
 
   @override
   List<Object?> get props => [
-        id,
-        cropId,
-        treeName,
-        treeCode,
-        area,
-        latitude,
-        longitude,
-        age,
-        waterConsumption,
-        healthStatus,
-        yieldCapacity,
-      ];
+    id,
+    cropId,
+    treeName,
+    treeCode,
+    area,
+    latitude,
+    longitude,
+    age,
+    waterConsumption,
+    healthStatus,
+    yieldCapacity,
+  ];
 }
 
 class AssetMedia extends Equatable {
-  const AssetMedia({
-    required this.fileUrl,
-    required this.filePath,
-  });
+  const AssetMedia({required this.fileUrl, required this.filePath});
 
   final String fileUrl;
   final String filePath;
 
-  String get fullUrl => resolveProfileImageUrl(fileUrl.isNotEmpty ? fileUrl : filePath);
+  String get fullUrl =>
+      resolveProfileImageUrl(fileUrl.isNotEmpty ? fileUrl : filePath);
 
   factory AssetMedia.fromJson(Map<String, dynamic> j) => AssetMedia(
-        fileUrl: (j['file_url'] ?? '').toString(),
-        filePath: (j['file_path'] ?? '').toString(),
-      );
+    fileUrl: (j['file_url'] ?? '').toString(),
+    filePath: (j['file_path'] ?? '').toString(),
+  );
 
   @override
   List<Object?> get props => [fileUrl, filePath];
+}
+
+int? _toInt(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toInt();
+  return int.tryParse('$v');
+}
+
+double? _toDouble(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse('$v');
 }

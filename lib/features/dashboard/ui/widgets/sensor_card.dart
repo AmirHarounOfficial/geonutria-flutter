@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 
 import '../sensor_meta.dart';
@@ -47,7 +48,7 @@ class SensorCard extends StatelessWidget {
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
-                    meta.label,
+                    context.ui(meta.label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelMedium?.copyWith(
@@ -91,7 +92,7 @@ class SensorCard extends StatelessWidget {
                   Icon(_levelIcon(level), size: 12, color: accent),
                   const SizedBox(width: 4),
                   Text(
-                    _levelLabel(level),
+                    context.ui(_levelLabel(level)),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: accent,
                       fontWeight: FontWeight.w700,

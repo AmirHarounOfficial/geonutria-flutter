@@ -54,7 +54,7 @@ class DashboardState extends Equatable {
     selectedId: selectedId ?? this.selectedId,
     iot: clearIot ? null : (iot ?? this.iot),
     statusLoading: statusLoading ?? this.statusLoading,
-    lastUpdated: lastUpdated ?? this.lastUpdated,
+    lastUpdated: clearIot ? null : lastUpdated ?? this.lastUpdated,
     error: error,
   );
 
@@ -84,7 +84,9 @@ class DashboardCubit extends Cubit<DashboardState> {
         emit(state.copyWith(status: DashStatus.ready, devices: const []));
         return;
       }
-      final selected = state.selectedId ?? devices.first.id;
+      final selected = devices.any((d) => d.id == state.selectedId)
+          ? state.selectedId!
+          : devices.first.id;
       emit(
         state.copyWith(
           status: DashStatus.ready,
@@ -111,6 +113,7 @@ class DashboardCubit extends Cubit<DashboardState> {
     emit(state.copyWith(statusLoading: true, error: null));
     try {
       final iot = await _repo.getStatus(id);
+      if (isClosed || state.selectedId != id) return;
       emit(
         state.copyWith(
           statusLoading: false,

@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/app_localizations.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -125,13 +126,13 @@ class _WeatherChartState extends State<WeatherChart> {
         ),
         const SizedBox(height: 6),
         Text(
-          metric.axisLabel,
+          '${context.ui(metric.label)} (${metric.unit})',
           style: theme.textTheme.labelMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
         Text(
-          metric.description,
+          context.ui(metric.description),
           style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
         ),
         const SizedBox(height: 8),
@@ -152,7 +153,7 @@ class _WeatherChartState extends State<WeatherChart> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
-                      '${metric.label} was not reported for this period.',
+                      context.ui('Not reported for this period'),
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.outline,

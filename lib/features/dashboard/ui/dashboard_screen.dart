@@ -11,6 +11,7 @@ import '../bloc/dashboard_cubit.dart';
 import '../bloc/history_cubit.dart';
 import '../bloc/manual_diagnosis_cubit.dart';
 import '../bloc/weather_cubit.dart';
+import '../data/iot_models.dart';
 import '../data/iot_repository.dart';
 import 'sensor_meta.dart';
 import 'widgets/diagnosis_card.dart';
@@ -27,27 +28,57 @@ import 'widgets/weather_chart.dart';
 
 /// The IoT monitoring dashboard: device selector + Live / History / Weather /
 /// Manual tabs.
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final repo = IotRepository(context.read<ApiClient>());
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late final IotRepository _repo;
+  late final DashboardCubit _dashboardCubit;
+  late final HistoryCubit _historyCubit;
+  late final WeatherCubit _weatherCubit;
+  late final ManualDiagnosisCubit _manualDiagnosisCubit;
+  late final DeepAnalysisCubit _deepAnalysisCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = IotRepository(context.read<ApiClient>());
     final auth = context.read<AuthCubit>();
+    _dashboardCubit = DashboardCubit(_repo, auth)..loadDevices();
+    _historyCubit = HistoryCubit(_repo, auth);
+    _weatherCubit = WeatherCubit(_repo);
+    _manualDiagnosisCubit = ManualDiagnosisCubit(_repo, auth);
+    _deepAnalysisCubit = DeepAnalysisCubit(
+      DeepAnalysisRepository(context.read<ApiClient>()),
+      AnalysisContextStore(),
+    )..loadContext();
+  }
+
+  @override
+  void dispose() {
+    _dashboardCubit.close();
+    _historyCubit.close();
+    _weatherCubit.close();
+    _manualDiagnosisCubit.close();
+    _deepAnalysisCubit.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => DashboardCubit(repo, auth)..loadDevices()),
-        BlocProvider(create: (_) => HistoryCubit(repo, auth)),
-        BlocProvider(create: (_) => WeatherCubit(repo)),
-        BlocProvider(create: (_) => ManualDiagnosisCubit(repo, auth)),
+        BlocProvider.value(value: _dashboardCubit),
+        BlocProvider.value(value: _historyCubit),
+        BlocProvider.value(value: _weatherCubit),
+        BlocProvider.value(value: _manualDiagnosisCubit),
         // Held at the dashboard rather than inside the card so a report
         // survives the sheet being dismissed and the tab being switched.
-        BlocProvider(
-          create: (ctx) => DeepAnalysisCubit(
-            DeepAnalysisRepository(ctx.read<ApiClient>()),
-            AnalysisContextStore(),
-          )..loadContext(),
-        ),
+        BlocProvider.value(value: _deepAnalysisCubit),
       ],
       child: const _DashboardView(),
     );
@@ -63,7 +94,7 @@ class _DashboardView extends StatelessWidget {
       builder: (context, state) {
         if (state.status == DashStatus.loadingDevices ||
             state.status == DashStatus.initial) {
-          return const LoadingView();
+          return LoadingView();
         }
         if (state.status == DashStatus.error) {
           return ErrorView(
@@ -98,7 +129,7 @@ class _DashboardView extends StatelessWidget {
                     _LiveTab(state: state),
                     _HistoryTab(deviceId: state.selectedId!),
                     _WeatherTab(deviceId: state.selectedId!),
-                    const ManualEntryForm(),
+                    ManualEntryForm(),
                   ],
                 ),
               ),
@@ -116,20 +147,32 @@ class _DeviceSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final uniqueDevices = <int, Device>{};
+    for (final d in state.devices) {
+      uniqueDevices[d.id] = d;
+    }
+    final deviceList = uniqueDevices.values.toList();
+
+    final hasSelected =
+        state.selectedId != null && uniqueDevices.containsKey(state.selectedId);
+    final int? selectedValue = hasSelected
+        ? state.selectedId
+        : (deviceList.isNotEmpty ? deviceList.first.id : null);
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
           Expanded(
             child: DropdownButtonFormField<int>(
-              initialValue: state.selectedId,
+              value: selectedValue,
               decoration: InputDecoration(
                 labelText: context.tr('select_device'),
-                prefixIcon: const Icon(Icons.sensors),
+                prefixIcon: Icon(Icons.sensors),
                 isDense: true,
               ),
               items: [
-                for (final d in state.devices)
+                for (final d in deviceList)
                   DropdownMenuItem(value: d.id, child: Text(d.name)),
               ],
               onChanged: (v) {
@@ -145,12 +188,12 @@ class _DeviceSelector extends StatelessWidget {
                 ? null
                 : () => context.read<DashboardCubit>().refresh(),
             icon: state.statusLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.sync),
+                : Icon(Icons.sync),
           ),
         ],
       ),
@@ -165,7 +208,7 @@ class _LiveTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.statusLoading && state.iot == null) {
-      return const LoadingView();
+      return LoadingView();
     }
     final iot = state.iot;
     if (iot == null) {
@@ -183,35 +226,37 @@ class _LiveTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () => context.read<DashboardCubit>().loadStatus(),
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         children: [
           _MqttBadge(
             status: iot.mqttStatus,
             live: iot.hasLiveData,
             lastUpdated: state.lastUpdated,
           ),
-          const SizedBox(height: 12),
-          const ActuatorsCard(),
-          const SchedulesCard(),
+          SizedBox(height: 12),
+          ActuatorsCard(),
+          SchedulesCard(),
           DiagnosisCard(diagnosis: iot.diagnosis),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           DeepAnalysisCard(
             deviceId: state.selectedId!,
             sensors: iot.sensors,
             enabled: iot.hasLiveData,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           if (!iot.hasLiveData)
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline),
-                    const SizedBox(width: 12),
+                    Icon(Icons.info_outline),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'No live data from this device yet. Try Refresh, or use Manual entry.',
+                        context.ui(
+                          'No live data from this device yet. Try Refresh, or use Manual entry.',
+                        ),
                       ),
                     ),
                   ],
@@ -222,7 +267,7 @@ class _LiveTab extends StatelessWidget {
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               // Taller than wide-ish: the card carries a value, a range bar
@@ -234,12 +279,12 @@ class _LiveTab extends StatelessWidget {
               ],
             ),
           if (device != null && device.hasLocation) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
-              'Device location',
+              context.ui('Device location'),
               style: Theme.of(context).textTheme.titleSmall,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: SizedBox(
@@ -281,11 +326,11 @@ class _MqttBadge extends StatelessWidget {
     return Row(
       children: [
         Icon(Icons.circle, size: 12, color: color),
-        const SizedBox(width: 8),
-        Expanded(child: Text('MQTT: $status')),
+        SizedBox(width: 8),
+        Expanded(child: Text('MQTT: ${context.ui(status)}')),
         if (lastUpdated != null)
           Text(
-            'Updated ${_clock(lastUpdated!)}',
+            '${context.ui('Updated')} ${_clock(lastUpdated!)}',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             ),
@@ -334,7 +379,7 @@ class _HistoryTabState extends State<_HistoryTab>
     return BlocBuilder<HistoryCubit, HistoryState>(
       builder: (context, state) {
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           children: [
             Wrap(
               spacing: 8,
@@ -350,13 +395,13 @@ class _HistoryTabState extends State<_HistoryTab>
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             // `initial` means the first query hasn't run yet — it must read as
             // loading, not as "no data", or an empty screen on entry looks
             // like data loss.
             if (state.state == LoadState.initial ||
                 state.state == LoadState.loading)
-              const Padding(padding: EdgeInsets.all(40), child: LoadingView())
+              Padding(padding: EdgeInsets.all(40), child: LoadingView())
             else if (state.state == LoadState.error)
               ErrorView(
                 message: state.error ?? context.tr('error_generic'),
@@ -403,7 +448,7 @@ class _NoResults extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
+      padding: EdgeInsets.symmetric(vertical: 32, horizontal: 8),
       child: Column(
         children: [
           Icon(
@@ -411,13 +456,13 @@ class _NoResults extends StatelessWidget {
             size: 40,
             color: theme.colorScheme.outlineVariant,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             message,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium,
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             hint,
             textAlign: TextAlign.center,
@@ -425,10 +470,10 @@ class _NoResults extends StatelessWidget {
               color: theme.colorScheme.outline,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh, size: 18),
+            icon: Icon(Icons.refresh, size: 18),
             label: Text(context.tr('retry')),
           ),
         ],
@@ -474,7 +519,7 @@ class _WeatherTabState extends State<_WeatherTab>
     return BlocBuilder<WeatherCubit, WeatherState>(
       builder: (context, state) {
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           children: [
             Wrap(
               spacing: 8,
@@ -490,10 +535,10 @@ class _WeatherTabState extends State<_WeatherTab>
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             if (state.state == LoadState.initial ||
                 state.state == LoadState.loading)
-              const Padding(padding: EdgeInsets.all(40), child: LoadingView())
+              Padding(padding: EdgeInsets.all(40), child: LoadingView())
             else if (state.state == LoadState.error)
               ErrorView(
                 message: state.error ?? context.tr('error_generic'),

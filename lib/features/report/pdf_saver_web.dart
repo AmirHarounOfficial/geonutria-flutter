@@ -4,7 +4,11 @@ import 'dart:typed_data';
 import 'package:web/web.dart' as web;
 
 /// Web: turn the PDF bytes into a Blob and trigger a direct browser download.
-Future<String?> savePdf(List<int> bytes, String fileName) async {
+Future<String?> savePdf(
+  List<int> bytes,
+  String fileName, {
+  String title = 'GeoNutria Farm Report',
+}) async {
   final data = Uint8List.fromList(bytes);
   final parts = <JSAny>[data.toJS].toJS;
   final blob = web.Blob(parts, web.BlobPropertyBag(type: 'application/pdf'));
@@ -18,11 +22,20 @@ Future<String?> savePdf(List<int> bytes, String fileName) async {
 }
 
 /// Web fallback for sharing: triggers a direct download.
-Future<void> sharePdf(List<int> bytes, String fileName) async {
+Future<void> sharePdf(
+  List<int> bytes,
+  String fileName, {
+  String title = 'GeoNutria Farm Report',
+}) async {
   await savePdf(bytes, fileName);
 }
 
 /// Web fallback for email sharing: triggers a direct download.
-Future<void> sharePdfViaEmail(List<int> bytes, String fileName, {String? recipientEmail}) async {
+Future<void> sharePdfViaEmail(
+  List<int> bytes,
+  String fileName, {
+  String? recipientEmail,
+  String title = 'GeoNutria Farm Report',
+}) async {
   await savePdf(bytes, fileName);
 }

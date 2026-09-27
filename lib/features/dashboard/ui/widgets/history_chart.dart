@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/app_localizations.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -121,7 +122,7 @@ class _HistoryChartState extends State<HistoryChart> {
         ),
         const SizedBox(height: 4),
         Text(
-          metric.axisLabel,
+          '${context.ui(metric.label)} (${metric.unit})',
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
@@ -132,7 +133,7 @@ class _HistoryChartState extends State<HistoryChart> {
           child: spots.isEmpty
               ? Center(
                   child: Text(
-                    'No ${metric.label} readings in this range',
+                    context.ui('No readings in this range'),
                     style: theme.textTheme.bodySmall,
                   ),
                 )

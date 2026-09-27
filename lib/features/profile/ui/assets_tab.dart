@@ -18,24 +18,28 @@ class AssetsTab extends StatelessWidget {
       builder: (context, state) {
         return Scaffold(
           body: switch (state.state) {
-            LoadState.loading => const LoadingView(),
+            LoadState.loading => LoadingView(),
             LoadState.error => ErrorView(
-                message: state.error ?? context.tr('error_generic'),
-                onRetry: () => context.read<AssetsCubit>().loadFarms(),
-              ),
-            _ => state.farms.isEmpty
-                ? const EmptyView(
-                    message: 'No farms yet. Add your first farm.',
-                    icon: Icons.agriculture_outlined)
-                : ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [for (final f in state.farms) _FarmTile(farm: f)],
-                  ),
+              message: state.error ?? context.tr('error_generic'),
+              onRetry: () => context.read<AssetsCubit>().loadFarms(),
+            ),
+            _ =>
+              state.farms.isEmpty
+                  ? EmptyView(
+                      message: 'No farms yet. Add your first farm.',
+                      icon: Icons.agriculture_outlined,
+                    )
+                  : ListView(
+                      padding: EdgeInsets.all(16),
+                      children: [
+                        for (final f in state.farms) _FarmTile(farm: f),
+                      ],
+                    ),
           },
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => _showAddFarm(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Add farm'),
+            icon: Icon(Icons.add),
+            label: Text(context.ui('Add farm')),
           ),
         );
       },
@@ -63,18 +67,29 @@ class AssetsTab extends StatelessWidget {
           builder: (bctx, setSheet) => Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('New farm', style: Theme.of(bctx).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'Farm name')),
-              const SizedBox(height: 8),
-              TextField(controller: address, decoration: const InputDecoration(labelText: 'Address')),
-              const SizedBox(height: 8),
+              Text(
+                context.ui('New farm'),
+                style: Theme.of(bctx).textTheme.titleLarge,
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: name,
+                decoration: InputDecoration(labelText: context.ui('Farm name')),
+              ),
+              SizedBox(height: 8),
+              TextField(
+                controller: address,
+                decoration: InputDecoration(labelText: context.ui('Address')),
+              ),
+              SizedBox(height: 8),
               TextField(
                 controller: area,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Total area (Ha)'),
+                decoration: InputDecoration(
+                  labelText: context.ui('Total area (Ha)'),
+                ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               MapLocationPicker(
                 label: 'Location',
                 latitude: lat,
@@ -84,7 +99,7 @@ class AssetsTab extends StatelessWidget {
                   lon = lo;
                 }),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               FilledButton(
                 onPressed: () {
                   cubit.createFarm(
@@ -115,32 +130,36 @@ class _FarmTile extends StatelessWidget {
     final repo = context.read<AssetsCubit>().repo;
     return Card(
       child: ExpansionTile(
-        leading: const Icon(Icons.agriculture),
-        title: Text(farm.name.isEmpty ? 'Farm ${farm.id}' : farm.name),
-        subtitle: Text([
-          if (farm.address != null && farm.address!.isNotEmpty) farm.address,
-          if (farm.totalArea != null) '${farm.totalArea} Ha',
-        ].whereType<String>().join(' · ')),
+        leading: Icon(Icons.agriculture),
+        title: Text(
+          farm.name.isEmpty ? '${context.ui('Farm')} ${farm.id}' : farm.name,
+        ),
+        subtitle: Text(
+          [
+            if (farm.address != null && farm.address!.isNotEmpty) farm.address,
+            if (farm.totalArea != null) '${farm.totalArea} Ha',
+          ].whereType<String>().join(' · '),
+        ),
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline),
+          icon: Icon(Icons.delete_outline),
           onPressed: () => context.read<AssetsCubit>().deleteFarm(farm.id),
         ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
         children: [
           FutureBuilder<List<Crop>>(
             future: repo.getCrops(farm.id),
             builder: (ctx, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
-                return const Padding(
+                return Padding(
                   padding: EdgeInsets.all(8),
                   child: LinearProgressIndicator(),
                 );
               }
               final crops = snap.data ?? [];
               if (crops.isEmpty) {
-                return const Padding(
+                return Padding(
                   padding: EdgeInsets.all(8),
-                  child: Text('No crops recorded.'),
+                  child: Text(context.ui('No crops recorded.')),
                 );
               }
               return Column(
@@ -162,29 +181,31 @@ class _CropTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = context.read<AssetsCubit>().repo;
     return ExpansionTile(
-      tilePadding: const EdgeInsetsDirectional.only(start: 8),
-      leading: const Icon(Icons.grass, size: 20),
+      tilePadding: EdgeInsetsDirectional.only(start: 8),
+      leading: Icon(Icons.grass, size: 20),
       title: Text(crop.name),
-      subtitle: Text([
-        if (crop.category != null) crop.category,
-        if (crop.plantedArea != null) '${crop.plantedArea} Ha',
-        if (crop.healthStatus != null) crop.healthStatus,
-      ].whereType<String>().join(' · ')),
+      subtitle: Text(
+        [
+          if (crop.category != null) crop.category,
+          if (crop.plantedArea != null) '${crop.plantedArea} Ha',
+          if (crop.healthStatus != null) crop.healthStatus,
+        ].whereType<String>().join(' · '),
+      ),
       children: [
         FutureBuilder<List<Tree>>(
           future: repo.getTrees(crop.id),
           builder: (ctx, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.all(8),
                 child: LinearProgressIndicator(),
               );
             }
             final trees = snap.data ?? [];
             if (trees.isEmpty) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.all(8),
-                child: Text('No trees recorded.'),
+                child: Text(context.ui('No trees recorded.')),
               );
             }
             return Column(
@@ -192,7 +213,7 @@ class _CropTile extends StatelessWidget {
                 for (final t in trees)
                   ListTile(
                     dense: true,
-                    leading: const Icon(Icons.park, size: 18),
+                    leading: Icon(Icons.park, size: 18),
                     title: Text(t.name),
                     subtitle: Text(t.code ?? ''),
                   ),

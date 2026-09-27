@@ -17,13 +17,13 @@ class Farm {
   final double? longitude;
 
   factory Farm.fromJson(Map<String, dynamic> j) => Farm(
-        id: (j['id'] as num).toInt(),
-        name: (j['farm_name'] ?? '').toString(),
-        address: j['address']?.toString(),
-        totalArea: (j['total_area'] as num?)?.toDouble(),
-        latitude: (j['latitude'] as num?)?.toDouble(),
-        longitude: (j['longitude'] as num?)?.toDouble(),
-      );
+    id: (j['id'] as num).toInt(),
+    name: (j['farm_name'] ?? '').toString(),
+    address: j['address']?.toString(),
+    totalArea: (j['total_area'] as num?)?.toDouble(),
+    latitude: (j['latitude'] as num?)?.toDouble(),
+    longitude: (j['longitude'] as num?)?.toDouble(),
+  );
 }
 
 class Crop {
@@ -41,12 +41,12 @@ class Crop {
   final String? healthStatus;
 
   factory Crop.fromJson(Map<String, dynamic> j) => Crop(
-        id: (j['id'] as num).toInt(),
-        name: (j['crop_name'] ?? '').toString(),
-        category: j['crop_category']?.toString(),
-        plantedArea: (j['planted_area'] as num?)?.toDouble(),
-        healthStatus: j['health_status']?.toString(),
-      );
+    id: (j['id'] as num).toInt(),
+    name: (j['crop_name'] ?? '').toString(),
+    category: j['crop_category']?.toString(),
+    plantedArea: (j['planted_area'] as num?)?.toDouble(),
+    healthStatus: j['health_status']?.toString(),
+  );
 }
 
 class Tree {
@@ -62,11 +62,11 @@ class Tree {
   final String? healthStatus;
 
   factory Tree.fromJson(Map<String, dynamic> j) => Tree(
-        id: (j['id'] as num).toInt(),
-        name: (j['tree_name'] ?? '').toString(),
-        code: j['tree_code']?.toString(),
-        healthStatus: j['health_status']?.toString(),
-      );
+    id: (j['id'] as num).toInt(),
+    name: (j['tree_name'] ?? '').toString(),
+    code: j['tree_code']?.toString(),
+    healthStatus: j['health_status']?.toString(),
+  );
 }
 
 /// Wraps the `/assets` router (farm → crop → tree hierarchy + media).
@@ -87,14 +87,17 @@ class AssetsRepository {
     required double totalArea,
     double? latitude,
     double? longitude,
-  }) =>
-      _api.post('/assets/farms', query: _api.authQuery(), body: {
-        'farm_name': name,
-        'address': address,
-        'total_area': totalArea,
-        'latitude': latitude,
-        'longitude': longitude,
-      });
+  }) => _api.post(
+    '/assets/farms',
+    query: _api.authQuery(),
+    body: {
+      'farm_name': name,
+      'address': address,
+      'total_area': totalArea,
+      'latitude': latitude,
+      'longitude': longitude,
+    },
+  );
 
   Future<void> deleteFarm(int id) => _api.delete('/assets/farms/$id');
 
@@ -109,13 +112,15 @@ class AssetsRepository {
     required String category,
     required String name,
     required double plantedArea,
-  }) =>
-      _api.post('/assets/crops', body: {
-        'farm_id': farmId,
-        'crop_category': category,
-        'crop_name': name,
-        'planted_area': plantedArea,
-      });
+  }) => _api.post(
+    '/assets/crops',
+    body: {
+      'farm_id': farmId,
+      'crop_category': category,
+      'crop_name': name,
+      'planted_area': plantedArea,
+    },
+  );
 
   Future<void> deleteCrop(int id) => _api.delete('/assets/crops/$id');
 
@@ -129,24 +134,21 @@ class AssetsRepository {
     required int cropId,
     required String name,
     required String code,
-  }) =>
-      _api.post('/assets/trees', body: {
-        'crop_id': cropId,
-        'tree_name': name,
-        'tree_code': code,
-      });
+  }) => _api.post(
+    '/assets/trees',
+    body: {'crop_id': cropId, 'tree_name': name, 'tree_code': code},
+  );
 
   Future<void> deleteTree(int id) => _api.delete('/assets/trees/$id');
 
   // --- Media ---
   Future<List<String>> getMedia(String entityType, int entityId) async {
-    final data = await _api.get('/assets/media',
-        query: {'entity_type': entityType, 'entity_id': entityId});
+    final data = await _api.get(
+      '/assets/media',
+      query: {'entity_type': entityType, 'entity_id': entityId},
+    );
     if (data is List) {
-      return data
-          .whereType<Map>()
-          .map((e) => '${e['file_url']}')
-          .toList();
+      return data.whereType<Map>().map((e) => '${e['file_url']}').toList();
     }
     return [];
   }

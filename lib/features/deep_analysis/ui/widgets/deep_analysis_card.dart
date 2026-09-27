@@ -119,10 +119,7 @@ class DeepAnalysisCard extends StatelessWidget {
                           label: context.tr('ctx_${ctx.irrigationType}'),
                         ),
                       if (ctx.location.isNotEmpty)
-                        _Chip(
-                          icon: Icons.place_outlined,
-                          label: ctx.location,
-                        ),
+                        _Chip(icon: Icons.place_outlined, label: ctx.location),
                     ],
                   ),
                 const SizedBox(height: 14),

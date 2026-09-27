@@ -34,12 +34,11 @@ class SupportState extends Equatable {
     List<SupportMessage>? messages,
     bool? connected,
     String? error,
-  }) =>
-      SupportState(
-        messages: messages ?? this.messages,
-        connected: connected ?? this.connected,
-        error: error,
-      );
+  }) => SupportState(
+    messages: messages ?? this.messages,
+    connected: connected ?? this.connected,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [messages, connected, error];
@@ -53,10 +52,18 @@ class SupportCubit extends Cubit<SupportState> {
   final int _userId;
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _sub;
+  bool _connecting = false;
+
+  Future<void> reconnect() async {
+    if (_connecting || state.connected || isClosed) return;
+    await _sub?.cancel();
+    await _channel?.sink.close();
+    if (!isClosed) await _connect();
+  }
 
   Future<void> init() async {
     await _loadHistory();
-    _connect();
+    if (!isClosed) await _connect();
   }
 
   Future<void> _loadHistory() async {
@@ -65,35 +72,47 @@ class SupportCubit extends Cubit<SupportState> {
       if (data is List) {
         final msgs = data
             .whereType<Map>()
-            .map((e) => SupportMessage(
-                  role: '${e['role']}',
-                  message: '${e['message']}',
-                ))
+            .map(
+              (e) => SupportMessage(
+                role: '${e['role']}',
+                message: '${e['message']}',
+              ),
+            )
             .toList();
-        emit(state.copyWith(messages: msgs));
+        if (!isClosed) emit(state.copyWith(messages: msgs));
       }
     } catch (_) {
       // History is best-effort.
     }
   }
 
-  void _connect() {
+  Future<void> _connect() async {
+    if (_connecting || isClosed) return;
+    _connecting = true;
     try {
       final uri = Uri.parse('${Env.wsBaseUrl}/support/ws/$_userId');
       final channel = WebSocketChannel.connect(uri);
       _channel = channel;
-      emit(state.copyWith(connected: true));
       _sub = channel.stream.listen(
         _onData,
-        onError: (_) => emit(state.copyWith(connected: false)),
-        onDone: () => emit(state.copyWith(connected: false)),
+        onError: (_) {
+          if (!isClosed) emit(state.copyWith(connected: false));
+        },
+        onDone: () {
+          if (!isClosed) emit(state.copyWith(connected: false));
+        },
       );
+      await channel.ready;
+      if (!isClosed) emit(state.copyWith(connected: true));
     } catch (e) {
-      emit(state.copyWith(connected: false, error: '$e'));
+      if (!isClosed) emit(state.copyWith(connected: false, error: '$e'));
+    } finally {
+      _connecting = false;
     }
   }
 
   void _onData(dynamic data) {
+    if (isClosed) return;
     try {
       final json = jsonDecode('$data') as Map<String, dynamic>;
       final msg = SupportMessage(
@@ -102,17 +121,31 @@ class SupportCubit extends Cubit<SupportState> {
       );
       emit(state.copyWith(messages: [...state.messages, msg]));
     } catch (_) {
-      emit(state.copyWith(
-          messages: [...state.messages, SupportMessage(role: 'Agent', message: '$data')]));
+      emit(
+        state.copyWith(
+          messages: [
+            ...state.messages,
+            SupportMessage(role: 'Agent', message: '$data'),
+          ],
+        ),
+      );
     }
   }
 
-  void send(String text) {
+  bool send(String text) {
     final t = text.trim();
-    if (t.isEmpty || _channel == null) return;
-    emit(state.copyWith(
-        messages: [...state.messages, SupportMessage(role: 'User', message: t)]));
+    if (t.isEmpty || _channel == null || !state.connected || isClosed)
+      return false;
+    emit(
+      state.copyWith(
+        messages: [
+          ...state.messages,
+          SupportMessage(role: 'User', message: t),
+        ],
+      ),
+    );
     _channel!.sink.add(t);
+    return true;
   }
 
   @override

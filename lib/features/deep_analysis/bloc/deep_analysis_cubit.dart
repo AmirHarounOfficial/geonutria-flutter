@@ -206,8 +206,6 @@ class DeepAnalysisCubit extends Cubit<DeepAnalysisState> {
 
   void reset() {
     _run++;
-    emit(
-      DeepAnalysisState(context: state.context),
-    );
+    emit(DeepAnalysisState(context: state.context));
   }
 }

@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -103,7 +104,7 @@ class _ActuatorTileState extends State<ActuatorTile> {
           child: InkWell(
             onTap: _busy ? null : () => _toggle(!on),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              padding: EdgeInsets.fromLTRB(12, 10, 8, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -118,7 +119,7 @@ class _ActuatorTileState extends State<ActuatorTile> {
                             ? theme.colorScheme.onPrimaryContainer
                             : theme.colorScheme.outline,
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           a.name,
@@ -133,7 +134,7 @@ class _ActuatorTileState extends State<ActuatorTile> {
                         ),
                       ),
                       if (_busy)
-                        const SizedBox(
+                        SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
@@ -154,7 +155,7 @@ class _ActuatorTileState extends State<ActuatorTile> {
                     children: [
                       Expanded(
                         child: Text(
-                          on ? 'On · ${meta.label}' : 'Off · ${meta.label}',
+                          '${context.ui(on ? 'On' : 'Off')} · ${context.ui(meta.label)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -170,13 +171,15 @@ class _ActuatorTileState extends State<ActuatorTile> {
                       if (a.supportsBrightness)
                         IconButton(
                           visualDensity: VisualDensity.compact,
-                          constraints: const BoxConstraints.tightFor(
+                          constraints: BoxConstraints.tightFor(
                             width: 30,
                             height: 30,
                           ),
                           padding: EdgeInsets.zero,
                           iconSize: 18,
-                          tooltip: a.supportsColour ? 'Colour' : 'Brightness',
+                          tooltip: context.ui(
+                            a.supportsColour ? 'Colour' : 'Brightness',
+                          ),
                           icon: Icon(
                             a.supportsColour
                                 ? Icons.color_lens_outlined
@@ -264,9 +267,9 @@ class _ActuatorTunerState extends State<_ActuatorTuner> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(a.name, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
-          Text('Brightness', style: theme.textTheme.labelLarge),
+          Text(context.ui('Brightness'), style: theme.textTheme.labelLarge),
           Row(
             children: [
               Expanded(
@@ -290,9 +293,9 @@ class _ActuatorTunerState extends State<_ActuatorTuner> {
           ),
 
           if (a.supportsColour) ...[
-            const SizedBox(height: 8),
-            Text('Colour', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
+            Text(context.ui('Colour'), style: theme.textTheme.labelLarge),
+            SizedBox(height: 8),
             Center(
               child: Container(
                 width: 72,
@@ -314,7 +317,7 @@ class _ActuatorTunerState extends State<_ActuatorTuner> {
             _channel('Blue', _b, Colors.blue, (v) => setState(() => _b = v)),
           ],
 
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
@@ -328,7 +331,7 @@ class _ActuatorTunerState extends State<_ActuatorTuner> {
                 widget.onBrightness(_brightness.round());
               }
             },
-            child: const Text('Apply'),
+            child: Text(context.ui('Apply')),
           ),
         ],
       ),
@@ -342,10 +345,7 @@ class _ActuatorTunerState extends State<_ActuatorTuner> {
     ValueChanged<double> onChanged,
   ) => Row(
     children: [
-      SizedBox(
-        width: 48,
-        child: Text(label, style: const TextStyle(fontSize: 12)),
-      ),
+      SizedBox(width: 48, child: Text(label, style: TextStyle(fontSize: 12))),
       Expanded(
         child: SliderTheme(
           data: SliderTheme.of(context).copyWith(activeTrackColor: colour),

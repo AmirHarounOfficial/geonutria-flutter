@@ -9,7 +9,10 @@ class PaywallPopup extends StatelessWidget {
 
   final VoidCallback onTopUp;
 
-  static Future<void> show(BuildContext context, {required VoidCallback onTopUp}) {
+  static Future<void> show(
+    BuildContext context, {
+    required VoidCallback onTopUp,
+  }) {
     return showDialog(
       context: context,
       builder: (_) => PaywallPopup(onTopUp: onTopUp),

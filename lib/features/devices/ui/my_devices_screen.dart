@@ -33,38 +33,39 @@ class _MyDevicesView extends StatelessWidget {
           c.state.role?.toLowerCase() == 'admin',
     );
     return BlocConsumer<DevicesCubit, DevicesState>(
-      listenWhen: (a, b) => a.error != b.error && b.error != null,
+      listenWhen: (a, b) =>
+          a.error != b.error && b.error != null && b.state != LoadState.error,
       listener: (ctx, state) {
         ScaffoldMessenger.of(ctx)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(state.error!)));
+          ..showSnackBar(
+            SnackBar(content: Text(context.errorText(state.error!))),
+          );
       },
       builder: (context, state) {
         return Scaffold(
           body: switch (state.state) {
-            LoadState.loading => const LoadingView(),
+            LoadState.loading => LoadingView(),
             LoadState.error => ErrorView(
               message: state.error ?? context.tr('error_generic'),
               onRetry: () => context.read<DevicesCubit>().load(),
             ),
             _ =>
               state.devices.isEmpty
-                  ? const EmptyView(
+                  ? EmptyView(
                       message: 'No devices yet. Bind your first device.',
                       icon: Icons.router_outlined,
                     )
                   : RefreshIndicator(
                       onRefresh: () => context.read<DevicesCubit>().load(),
                       child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(16),
                         itemCount: state.devices.length,
                         itemBuilder: (ctx, i) {
                           final d = state.devices[i];
                           return Card(
                             child: ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.router),
-                              ),
+                              leading: CircleAvatar(child: Icon(Icons.router)),
                               title: Row(
                                 children: [
                                   Expanded(child: Text(d.name)),
@@ -81,13 +82,14 @@ class _MyDevicesView extends StatelessWidget {
                                     d.location,
                                   if (d.healthKnown)
                                     'Last reading ${d.lastSeenLabel}',
-                                  '${d.mqttTopics.length} topics · ${d.controls.length} controls',
+                                  if (d.controls.isNotEmpty)
+                                    '${d.controls.length} ${d.controls.length == 1 ? "control" : "controls"}',
                                   if (d.firmwareVersion != null)
                                     'fw ${d.firmwareVersion}',
                                 ].whereType<String>().join('\n'),
                               ),
                               isThreeLine: true,
-                              trailing: const Icon(Icons.chevron_right),
+                              trailing: Icon(Icons.chevron_right),
                               onTap: () {
                                 final cubit = ctx.read<DevicesCubit>();
                                 Navigator.of(ctx).push(
@@ -108,8 +110,8 @@ class _MyDevicesView extends StatelessWidget {
           floatingActionButton: isAdmin
               ? FloatingActionButton.extended(
                   onPressed: () => _showBindSheet(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Bind device'),
+                  icon: Icon(Icons.add),
+                  label: Text(context.ui('Bind device')),
                 )
               : null,
         );
@@ -146,7 +148,7 @@ class _HealthChip extends StatelessWidget {
       DeviceHealth.never => ('No data', scheme.outline),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -156,7 +158,7 @@ class _HealthChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.circle, size: 8, color: color),
-          const SizedBox(width: 5),
+          SizedBox(width: 5),
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -205,7 +207,9 @@ class _BindSheetState extends State<_BindSheet> {
     if (name.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Enter a device name.')));
+        ..showSnackBar(
+          SnackBar(content: Text(context.ui('Enter a device name.'))),
+        );
       return;
     }
     setState(() => _busy = true);
@@ -237,15 +241,15 @@ class _BindSheetState extends State<_BindSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Bind a device',
+              context.ui('Bind a device'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Device name'),
+              decoration: InputDecoration(labelText: context.ui('Device name')),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             MapLocationPicker(
               label: 'Location (optional)',
               latitude: _lat,
@@ -255,29 +259,29 @@ class _BindSheetState extends State<_BindSheet> {
                 _lon = lo;
               }),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
-              'MQTT topics (monitored)',
+              context.ui('MQTT topics (monitored)'),
               style: Theme.of(context).textTheme.titleSmall,
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             for (var i = 0; i < _topics.length; i++)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _topics[i],
                         decoration: InputDecoration(
-                          labelText: 'Topic ${i + 1}',
-                          hintText: 'e.g. farm/soil/device1',
+                          labelText: '${context.ui('Topic')} ${i + 1}',
+                          hintText: context.ui('e.g. farm/soil/device1'),
                         ),
                       ),
                     ),
                     if (_topics.length > 1)
                       IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
+                        icon: Icon(Icons.remove_circle_outline),
                         onPressed: () => setState(() => _topics.removeAt(i)),
                       ),
                   ],
@@ -288,23 +292,25 @@ class _BindSheetState extends State<_BindSheet> {
               child: TextButton.icon(
                 onPressed: () =>
                     setState(() => _topics.add(TextEditingController())),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add topic'),
+                icon: Icon(Icons.add, size: 18),
+                label: Text(context.ui('Add topic')),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             TextField(
               controller: _ota,
-              decoration: const InputDecoration(
-                labelText: 'OTA topic (optional)',
-                hintText: 'topic the device listens on for firmware',
+              decoration: InputDecoration(
+                labelText: context.ui('OTA topic (optional)'),
+                hintText: context.ui(
+                  'topic the device listens on for firmware',
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             FilledButton(
               onPressed: _busy ? null : _submit,
               child: _busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(

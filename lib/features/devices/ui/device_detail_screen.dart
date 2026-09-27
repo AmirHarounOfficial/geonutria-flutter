@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/localized_number.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,7 +25,7 @@ class DeviceDetailScreen extends StatelessWidget {
           if (d.id == deviceId) device = d;
         }
         if (device == null) {
-          return const Scaffold(body: EmptyView(message: 'Device not found'));
+          return Scaffold(body: EmptyView(message: 'Device not found'));
         }
         final dev = device;
         return Scaffold(
@@ -32,22 +33,22 @@ class DeviceDetailScreen extends StatelessWidget {
             title: Text(dev.name),
             actions: [
               IconButton(
-                icon: const Icon(Icons.edit_outlined),
+                icon: Icon(Icons.edit_outlined),
                 onPressed: () => _editDevice(context, dev),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline),
+                icon: Icon(Icons.delete_outline),
                 onPressed: () => _confirmDelete(context, dev),
               ),
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             children: [
               _InfoCard(device: dev),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               _ControlsSection(device: dev),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               // Flashing firmware can brick a device, so OTA is admin-only.
               // The backend enforces this too — this just hides the UI.
               if (context.select((AuthCubit c) => c.state.isAdmin))
@@ -65,8 +66,10 @@ class DeviceDetailScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dctx) => AlertDialog(
-        title: const Text('Unbind device?'),
-        content: Text('Remove "${dev.name}" from your account?'),
+        title: Text(context.ui('Unbind device?')),
+        content: Text(
+          '${context.ui('Remove this device from your account?')}\n${dev.name}',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dctx).pop(),
@@ -104,24 +107,126 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (device.location != null && device.location!.isNotEmpty)
-              Text(device.location!),
-            const SizedBox(height: 6),
-            Text(
-              'Monitored topics: ${device.mqttTopics.join(", ")}',
-              style: Theme.of(context).textTheme.bodySmall,
+            Row(
+              children: [
+                Icon(
+                  Icons.router_outlined,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    device.name,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (device.healthKnown)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: device.health == DeviceHealth.online
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : Colors.orange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          radius: 3,
+                          backgroundColor: device.health == DeviceHealth.online
+                              ? Colors.green
+                              : Colors.orange,
+                        ),
+                        SizedBox(width: 5),
+                        Text(
+                          device.health == DeviceHealth.online
+                              ? 'Online'
+                              : 'Offline',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: device.health == DeviceHealth.online
+                                ? Colors.green.shade700
+                                : Colors.orange.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
-            if (device.otaTopic != null)
+            Divider(height: 20),
+            Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: colorScheme.outline,
+                ),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    (device.location != null && device.location!.isNotEmpty)
+                        ? device.location!
+                        : 'No location assigned',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.tune_outlined, size: 16, color: colorScheme.outline),
+                SizedBox(width: 6),
+                Text(
+                  '${device.controls.length} configured ${device.controls.length == 1 ? "control" : "controls"}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (device.firmwareVersion != null) ...[
+                  SizedBox(width: 12),
+                  Icon(
+                    Icons.memory_outlined,
+                    size: 16,
+                    color: colorScheme.outline,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'FW: ${device.firmwareVersion}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (device.healthKnown) ...[
+              SizedBox(height: 6),
               Text(
-                'OTA topic: ${device.otaTopic}',
-                style: Theme.of(context).textTheme.bodySmall,
+                '${context.ui('Last seen')} ${device.lastSeenLabel}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.outline,
+                  fontSize: 11,
+                ),
               ),
+            ],
           ],
         ),
       ),
@@ -138,7 +243,7 @@ class _ControlsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -146,21 +251,25 @@ class _ControlsSection extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Controls',
+                    context.ui('Controls'),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 TextButton.icon(
                   onPressed: () => _addOrEdit(context, null),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add'),
+                  icon: Icon(Icons.add, size: 18),
+                  label: Text(context.ui('Add')),
                 ),
               ],
             ),
             if (device.controls.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text('No controls yet. Add a switch or value endpoint.'),
+                child: Text(
+                  context.ui(
+                    'No controls yet. Add a switch or value endpoint.',
+                  ),
+                ),
               )
             else
               for (var i = 0; i < device.controls.length; i++)
@@ -168,14 +277,22 @@ class _ControlsSection extends StatelessWidget {
                   key: ValueKey('${device.id}:${device.controls[i].topic}'),
                   deviceId: device.id,
                   control: device.controls[i],
-                  subtitle: device.controls[i].topic,
+                  subtitle: device.controls[i].isSwitch
+                      ? 'Switch Endpoint'
+                      : 'Value Slider (${device.controls[i].min.toInt()} - ${device.controls[i].max.toInt()}${device.controls[i].unit != null ? " ${device.controls[i].unit}" : ""})',
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) => v == 'edit'
                         ? _addOrEdit(context, i)
                         : _delete(context, i),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'edit', child: Text('Edit')),
-                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text(context.ui('Edit')),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text(context.ui('Delete')),
+                      ),
                     ],
                   ),
                 ),
@@ -254,8 +371,8 @@ class _ControlEditorState extends State<_ControlEditor> {
       type: _type,
       onPayload: _on.text.trim().isEmpty ? '1' : _on.text.trim(),
       offPayload: _off.text.trim().isEmpty ? '0' : _off.text.trim(),
-      min: double.tryParse(_min.text) ?? 0,
-      max: double.tryParse(_max.text) ?? 100,
+      min: parseLocalizedDouble(_min.text) ?? 0,
+      max: parseLocalizedDouble(_max.text) ?? 100,
       unit: _unit.text.trim().isEmpty ? null : _unit.text.trim(),
       stateTopic: _stateTopic.text.trim().isEmpty
           ? null
@@ -289,62 +406,62 @@ class _ControlEditorState extends State<_ControlEditor> {
               widget.index == null ? 'Add control' : 'Edit control',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextField(
               controller: _label,
-              decoration: const InputDecoration(labelText: 'Label'),
+              decoration: InputDecoration(labelText: context.ui('Label')),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             TextField(
               controller: _topic,
-              decoration: const InputDecoration(
-                labelText: 'Command topic',
+              decoration: InputDecoration(
+                labelText: context.ui('Command topic'),
                 helperText: 'Topic the device listens on',
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             TextField(
               controller: _stateTopic,
-              decoration: const InputDecoration(
-                labelText: 'State topic (optional)',
+              decoration: InputDecoration(
+                labelText: context.ui('State topic (optional)'),
                 helperText: 'Topic the device reports its actual state on',
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             SegmentedButton<String>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: 'switch',
-                  label: Text('Switch'),
+                  label: Text(context.ui('Switch')),
                   icon: Icon(Icons.toggle_on),
                 ),
                 ButtonSegment(
                   value: 'value',
-                  label: Text('Value'),
+                  label: Text(context.ui('Value')),
                   icon: Icon(Icons.tune),
                 ),
               ],
               selected: {_type},
               onSelectionChanged: (s) => setState(() => _type = s.first),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             if (_type == 'switch')
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _on,
-                      decoration: const InputDecoration(
-                        labelText: 'On payload',
+                      decoration: InputDecoration(
+                        labelText: context.ui('On payload'),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _off,
-                      decoration: const InputDecoration(
-                        labelText: 'Off payload',
+                      decoration: InputDecoration(
+                        labelText: context.ui('Off payload'),
                       ),
                     ),
                   ),
@@ -357,27 +474,29 @@ class _ControlEditorState extends State<_ControlEditor> {
                     child: TextField(
                       controller: _min,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Min'),
+                      decoration: InputDecoration(labelText: context.ui('Min')),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _max,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Max'),
+                      decoration: InputDecoration(labelText: context.ui('Max')),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _unit,
-                      decoration: const InputDecoration(labelText: 'Unit'),
+                      decoration: InputDecoration(
+                        labelText: context.ui('Unit'),
+                      ),
                     ),
                   ),
                 ],
               ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             FilledButton(onPressed: _save, child: Text(context.tr('save'))),
           ],
         ),
@@ -398,8 +517,10 @@ class _FirmwareLockedNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.lock_outline),
-        title: Text('Firmware${version != null ? ' · $version' : ''}'),
+        leading: Icon(Icons.lock_outline),
+        title: Text(
+          '${context.ui('Firmware')}${version != null ? ' · $version' : ''}',
+        ),
         subtitle: Text(context.tr('firmware_admin_only')),
       ),
     );
@@ -438,7 +559,7 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('Pick a firmware file first.')),
+          SnackBar(content: Text(context.ui('Pick a firmware file first.'))),
         );
       return;
     }
@@ -446,8 +567,10 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text('Set an OTA topic first (edit the device).'),
+          SnackBar(
+            content: Text(
+              context.ui('Set an OTA topic first (edit the device).'),
+            ),
           ),
         );
       return;
@@ -465,7 +588,9 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('OTA command sent (v$v).')));
+        ..showSnackBar(
+          SnackBar(content: Text('${context.ui('OTA command sent')} $v).')),
+        );
       setState(() => _file = null);
     } on AppException catch (e) {
       if (mounted) {
@@ -482,36 +607,39 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Firmware', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              context.ui('Firmware'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             if (widget.device.firmwareVersion != null)
               Text(
-                'Current: ${widget.device.firmwareVersion}',
+                '${context.ui('Current')} ${widget.device.firmwareVersion}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(
               children: [
                 OutlinedButton.icon(
                   onPressed: _busy ? null : _pick,
-                  icon: const Icon(Icons.attach_file),
+                  icon: Icon(Icons.attach_file),
                   label: Text(_file?.name ?? 'Pick .bin'),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             TextField(
               controller: _version,
-              decoration: const InputDecoration(labelText: 'Version'),
+              decoration: InputDecoration(labelText: context.ui('Version')),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _busy ? null : _push,
               icon: _busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
@@ -519,8 +647,8 @@ class _FirmwareSectionState extends State<_FirmwareSection> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.system_update_alt),
-              label: const Text('Push update (OTA)'),
+                  : Icon(Icons.system_update_alt),
+              label: Text(context.ui('Push update (OTA)')),
             ),
           ],
         ),
@@ -591,35 +719,41 @@ class _EditSheetState extends State<_EditSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Edit device', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
+            Text(
+              context.ui('Edit device'),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            SizedBox(height: 12),
             TextField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(labelText: context.ui('Name')),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             TextField(
               controller: _location,
-              decoration: const InputDecoration(labelText: 'Location'),
+              decoration: InputDecoration(labelText: context.ui('Location')),
             ),
-            const SizedBox(height: 12),
-            Text('MQTT topics', style: Theme.of(context).textTheme.titleSmall),
+            SizedBox(height: 12),
+            Text(
+              context.ui('MQTT topics'),
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             for (var i = 0; i < _topics.length; i++)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: 8),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _topics[i],
                         decoration: InputDecoration(
-                          labelText: 'Topic ${i + 1}',
+                          labelText: '${context.ui('Topic')} ${i + 1}',
                         ),
                       ),
                     ),
                     if (_topics.length > 1)
                       IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
+                        icon: Icon(Icons.remove_circle_outline),
                         onPressed: () => setState(() => _topics.removeAt(i)),
                       ),
                   ],
@@ -630,15 +764,15 @@ class _EditSheetState extends State<_EditSheet> {
               child: TextButton.icon(
                 onPressed: () =>
                     setState(() => _topics.add(TextEditingController())),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add topic'),
+                icon: Icon(Icons.add, size: 18),
+                label: Text(context.ui('Add topic')),
               ),
             ),
             TextField(
               controller: _ota,
-              decoration: const InputDecoration(labelText: 'OTA topic'),
+              decoration: InputDecoration(labelText: context.ui('OTA topic')),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             FilledButton(onPressed: _save, child: Text(context.tr('save'))),
           ],
         ),

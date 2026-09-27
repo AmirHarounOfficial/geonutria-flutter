@@ -20,7 +20,8 @@ class IndexResult {
   final String currentInsight;
   final String pastInsight;
 
-  String? get currentImage => currentUrl == null ? null : Env.resolveMedia(currentUrl);
+  String? get currentImage =>
+      currentUrl == null ? null : Env.resolveMedia(currentUrl);
   String? get pastImage => pastUrl == null ? null : Env.resolveMedia(pastUrl);
   double get delta => currentVal - pastVal;
 
@@ -54,8 +55,10 @@ class SatelliteResult {
   final String? rgbCurrentUrl;
   final String? rgbPastUrl;
 
-  String? get rgbCurrent => rgbCurrentUrl == null ? null : Env.resolveMedia(rgbCurrentUrl);
-  String? get rgbPast => rgbPastUrl == null ? null : Env.resolveMedia(rgbPastUrl);
+  String? get rgbCurrent =>
+      rgbCurrentUrl == null ? null : Env.resolveMedia(rgbCurrentUrl);
+  String? get rgbPast =>
+      rgbPastUrl == null ? null : Env.resolveMedia(rgbPastUrl);
 
   static const _order = ['ndvi', 'ndmi', 'ndre', 'gndvi', 'ndwi', 'savi'];
 
@@ -70,7 +73,10 @@ class SatelliteResult {
       indices: [
         for (final key in _order)
           if (idx[key] is Map)
-            IndexResult.fromJson(key, (idx[key] as Map).cast<String, dynamic>()),
+            IndexResult.fromJson(
+              key,
+              (idx[key] as Map).cast<String, dynamic>(),
+            ),
       ],
       rgbCurrentUrl: rgb['current_url'] as String?,
       rgbPastUrl: rgb['past_url'] as String?,

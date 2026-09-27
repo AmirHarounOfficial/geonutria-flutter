@@ -14,10 +14,10 @@ class Env {
   /// (e.g. `$apiBaseUrl/login`, `$apiBaseUrl/iot-status`).
   static String get apiBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
-    if (fromEnv.isNotEmpty) return fromEnv;
+    if (fromEnv.isNotEmpty) return fromEnv.replaceFirst(RegExp(r'/+$'), '');
     if (kIsWeb) {
       final origin = Uri.base.origin;
-      if (origin.contains('geonutria.ai')) {
+      if (Uri.base.host == 'app.geonutria.ai') {
         return '$origin/api';
       }
     }
@@ -28,10 +28,10 @@ class Env {
   /// backend (satellite plots, profile/asset images).
   static String get staticBaseUrl {
     const fromEnv = String.fromEnvironment('STATIC_BASE_URL');
-    if (fromEnv.isNotEmpty) return fromEnv;
+    if (fromEnv.isNotEmpty) return fromEnv.replaceFirst(RegExp(r'/+$'), '');
     if (kIsWeb) {
       final origin = Uri.base.origin;
-      if (origin.contains('geonutria.ai')) {
+      if (Uri.base.host == 'app.geonutria.ai') {
         return '$origin/api';
       }
     }
@@ -51,13 +51,20 @@ class Env {
   /// package/SHA and the iOS Info.plist respectively, not here.
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
-    defaultValue: '934884489582-4logkq2nh414npcv1tkvtrs8cplnonlb.apps.googleusercontent.com',
+    defaultValue:
+        '934884489582-4logkq2nh414npcv1tkvtrs8cplnonlb.apps.googleusercontent.com',
   );
 
   /// Resolve a possibly-relative media path to an absolute URL.
   static String resolveMedia(String? path) {
     if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith('data:'))
+      return path;
+    if (path.startsWith('/api/') && staticBaseUrl.endsWith('/api')) {
+      return '${staticBaseUrl.substring(0, staticBaseUrl.length - 4)}$path';
+    }
     final normalized = path.startsWith('/') ? path : '/$path';
     return '$staticBaseUrl$normalized';
   }

@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -17,6 +18,7 @@ class ConsultantScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
+      key: ValueKey(context.locale.languageCode),
       create: (ctx) => ConsultantCubit(
         ConsultantRepository(ctx.read<ApiClient>()),
         ctx.read<AuthCubit>(),
@@ -46,12 +48,18 @@ class _ConsultantViewState extends State<_ConsultantView> {
   void _send() {
     final text = _input.text.trim();
     if (text.isEmpty) return;
-    context.read<ConsultantCubit>().send(text);
+    context.read<ConsultantCubit>().send(
+      text,
+      lang: context.locale.languageCode,
+    );
     _input.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
-        _scroll.animateTo(_scroll.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
@@ -63,7 +71,9 @@ class _ConsultantViewState extends State<_ConsultantView> {
       listener: (ctx, state) {
         ScaffoldMessenger.of(ctx)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(state.error!)));
+          ..showSnackBar(
+            SnackBar(content: Text(context.errorText(state.error!))),
+          );
       },
       builder: (context, state) {
         return Column(
@@ -78,8 +88,9 @@ class _ConsultantViewState extends State<_ConsultantView> {
                     )
                   : ListView.builder(
                       controller: _scroll,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: state.messages.length + (state.sending ? 1 : 0),
+                      padding: EdgeInsets.all(16),
+                      itemCount:
+                          state.messages.length + (state.sending ? 1 : 0),
                       itemBuilder: (ctx, i) {
                         if (i >= state.messages.length) {
                           return const _TypingBubble();
@@ -110,14 +121,17 @@ class _ContextPanel extends StatelessWidget {
     final sel = cubit.selection;
     final opts = state.options;
     return Card(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      margin: EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: ExpansionTile(
-        leading: const Icon(Icons.tune),
-        title: const Text('Analysis context'),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        leading: Icon(Icons.tune),
+        title: Text(context.ui('Analysis context')),
+        childrenPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
           if (state.optionsState == LoadState.loading)
-            const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator())
+            Padding(
+              padding: EdgeInsets.all(8),
+              child: LinearProgressIndicator(),
+            )
           else ...[
             StatefulBuilder(
               builder: (ctx, setLocal) => Column(
@@ -125,23 +139,59 @@ class _ContextPanel extends StatelessWidget {
                 children: [
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Include my profile'),
+                    title: Text(context.ui('Include my profile')),
                     value: sel.includeUserInfo,
                     onChanged: (v) => setLocal(() => sel.includeUserInfo = v),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Include macro weather'),
+                    title: Text(context.ui('Include macro weather')),
                     value: sel.includeMacroWeather,
-                    onChanged: (v) => setLocal(() => sel.includeMacroWeather = v),
+                    onChanged: (v) =>
+                        setLocal(() => sel.includeMacroWeather = v),
                   ),
-                  _ChipGroup(label: 'Devices', items: opts.devices, selected: sel.deviceIds, onToggle: setLocal),
-                  _ChipGroup(label: 'Leaf scans', items: opts.leafScans, selected: sel.leafScans, onToggle: setLocal),
-                  _ChipGroup(label: 'Soil scans', items: opts.soilScans, selected: sel.soilScans, onToggle: setLocal),
-                  _ChipGroup(label: 'Crop recs', items: opts.cropRecs, selected: sel.cropRecs, onToggle: setLocal),
-                  _ChipGroup(label: 'Yield', items: opts.yieldPreds, selected: sel.yieldPreds, onToggle: setLocal),
-                  _ChipGroup(label: 'Satellite', items: opts.satellites, selected: sel.satellites, onToggle: setLocal),
-                  _ChipGroup(label: 'Aerial palms', items: opts.aerialPalms, selected: sel.aerialPalms, onToggle: setLocal),
+                  _ChipGroup(
+                    label: 'Devices',
+                    items: opts.devices,
+                    selected: sel.deviceIds,
+                    onToggle: setLocal,
+                  ),
+                  _ChipGroup(
+                    label: 'Leaf scans',
+                    items: opts.leafScans,
+                    selected: sel.leafScans,
+                    onToggle: setLocal,
+                  ),
+                  _ChipGroup(
+                    label: 'Soil scans',
+                    items: opts.soilScans,
+                    selected: sel.soilScans,
+                    onToggle: setLocal,
+                  ),
+                  _ChipGroup(
+                    label: 'Crop recs',
+                    items: opts.cropRecs,
+                    selected: sel.cropRecs,
+                    onToggle: setLocal,
+                  ),
+                  _ChipGroup(
+                    label: 'Yield',
+                    items: opts.yieldPreds,
+                    selected: sel.yieldPreds,
+                    onToggle: setLocal,
+                  ),
+                  _ChipGroup(
+                    label: 'Satellite',
+                    items: opts.satellites,
+                    selected: sel.satellites,
+                    onToggle: setLocal,
+                  ),
+                  _ChipGroup(
+                    label: 'Aerial palms',
+                    items: opts.aerialPalms,
+                    selected: sel.aerialPalms,
+                    onToggle: setLocal,
+                  ),
                 ],
               ),
             ),
@@ -167,14 +217,14 @@ class _ChipGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.isEmpty) return SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: EdgeInsets.only(top: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: Theme.of(context).textTheme.labelMedium),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Wrap(
             spacing: 6,
             runSpacing: 4,
@@ -208,19 +258,21 @@ class _MessageBubble extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isUser = message.isUser;
     return Align(
-      alignment: isUser ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+      alignment: isUser
+          ? AlignmentDirectional.centerEnd
+          : AlignmentDirectional.centerStart,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: EdgeInsets.symmetric(vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.82),
+          maxWidth: MediaQuery.of(context).size.width * 0.82,
+        ),
         decoration: BoxDecoration(
           color: isUser ? scheme.primary : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
         ),
         child: isUser
-            ? Text(message.content,
-                style: TextStyle(color: scheme.onPrimary))
+            ? Text(message.content, style: TextStyle(color: scheme.onPrimary))
             : MarkdownBody(data: message.content),
       ),
     );
@@ -234,18 +286,21 @@ class _TypingBubble extends StatelessWidget {
     return Align(
       alignment: AlignmentDirectional.centerStart,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(14),
+        margin: EdgeInsets.symmetric(vertical: 6),
+        padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const SizedBox(
+        child: SizedBox(
           width: 24,
           height: 16,
           child: Center(
             child: SizedBox(
-                width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
         ),
       ),
@@ -268,7 +323,7 @@ class _InputBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(12),
         child: Row(
           children: [
             Expanded(
@@ -279,18 +334,21 @@ class _InputBar extends StatelessWidget {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => sending ? null : onSend(),
                 decoration: InputDecoration(
-                  hintText: 'Ask about your farm…',
+                  hintText: context.ui('Ask about your farm…'),
                   isDense: true,
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             FloatingActionButton.small(
               onPressed: sending ? null : onSend,
               child: sending
-                  ? const SizedBox(
-                      width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.send),
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(Icons.send),
             ),
           ],
         ),

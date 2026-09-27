@@ -56,8 +56,8 @@ class ControlEndpoint extends Equatable {
     type: (j['type'] ?? 'switch').toString(),
     onPayload: (j['on_payload'] ?? '1').toString(),
     offPayload: (j['off_payload'] ?? '0').toString(),
-    min: (j['min'] as num?)?.toDouble() ?? 0,
-    max: (j['max'] as num?)?.toDouble() ?? 100,
+    min: _toDouble(j['min']) ?? 0,
+    max: _toDouble(j['max']) ?? 100,
     unit: j['unit']?.toString(),
     stateTopic: j['state_topic']?.toString(),
   );
@@ -179,11 +179,11 @@ class MyDevice extends Equatable {
   }
 
   factory MyDevice.fromJson(Map<String, dynamic> j) => MyDevice(
-    id: (j['id'] as num).toInt(),
+    id: _toInt(j['id']) ?? 0,
     name: (j['device_name'] ?? j['name'] ?? 'Device ${j['id']}').toString(),
     location: (j['installed_location'] ?? j['location'])?.toString(),
-    latitude: (j['latitude'] as num?)?.toDouble(),
-    longitude: (j['longitude'] as num?)?.toDouble(),
+    latitude: _toDouble(j['latitude']),
+    longitude: _toDouble(j['longitude']),
     mqttTopics: _stringList(j['mqtt_topics']),
     controls: (j['control_topics'] is List)
         ? (j['control_topics'] as List)
@@ -193,7 +193,7 @@ class MyDevice extends Equatable {
         : const [],
     otaTopic: j['ota_topic']?.toString(),
     firmwareVersion: j['firmware_version']?.toString(),
-    farmId: (j['farm_id'] as num?)?.toInt(),
+    farmId: _toInt(j['farm_id']),
     lastReadingAt: DateTime.tryParse(j['last_reading_at']?.toString() ?? ''),
     healthKnown: j.containsKey('last_reading_at'),
   );
@@ -212,4 +212,16 @@ class MyDevice extends Equatable {
     otaTopic,
     firmwareVersion,
   ];
+}
+
+int? _toInt(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toInt();
+  return int.tryParse('$v');
+}
+
+double? _toDouble(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse('$v');
 }

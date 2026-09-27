@@ -28,14 +28,13 @@ class ConsultantState extends Equatable {
     List<ChatMessage>? messages,
     bool? sending,
     String? error,
-  }) =>
-      ConsultantState(
-        optionsState: optionsState ?? this.optionsState,
-        options: options ?? this.options,
-        messages: messages ?? this.messages,
-        sending: sending ?? this.sending,
-        error: error,
-      );
+  }) => ConsultantState(
+    optionsState: optionsState ?? this.optionsState,
+    options: options ?? this.options,
+    messages: messages ?? this.messages,
+    sending: sending ?? this.sending,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [optionsState, options, messages, sending, error];
@@ -62,7 +61,7 @@ class ConsultantCubit extends Cubit<ConsultantState> {
     }
   }
 
-  Future<void> send(String question) async {
+  Future<void> send(String question, {required String lang}) async {
     final uid = _auth.state.userId;
     if (uid == null || question.trim().isEmpty || state.sending) return;
 
@@ -73,25 +72,35 @@ class ConsultantCubit extends Cubit<ConsultantState> {
     emit(state.copyWith(messages: history, sending: true, error: null));
 
     try {
-      final taskId =
-          await _repo.start(userId: uid, history: history, selection: selection);
+      final taskId = await _repo.start(
+        userId: uid,
+        history: history,
+        selection: selection,
+        lang: lang,
+      );
       final answer = await _poll(taskId);
-      emit(state.copyWith(
-        messages: [
-          ...history,
-          ChatMessage(role: 'assistant', content: answer),
-        ],
-        sending: false,
-      ));
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          messages: [
+            ...history,
+            ChatMessage(role: 'assistant', content: answer),
+          ],
+          sending: false,
+        ),
+      );
       _auth.refreshCredits();
     } on InsufficientCreditsException {
       emit(state.copyWith(sending: false)); // paywall handled globally
     } on AppException catch (e) {
       emit(state.copyWith(sending: false, error: e.message));
     } catch (e) {
-      emit(state.copyWith(
+      emit(
+        state.copyWith(
           sending: false,
-          error: e.toString().replaceFirst('Exception: ', '')));
+          error: e.toString().replaceFirst('Exception: ', ''),
+        ),
+      );
     }
   }
 

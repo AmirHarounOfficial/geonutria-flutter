@@ -16,7 +16,7 @@ class LoadingView extends StatelessWidget {
           const CircularProgressIndicator(),
           if (message != null) ...[
             const SizedBox(height: 12),
-            Text(message!, textAlign: TextAlign.center),
+            Text(context.ui(message!), textAlign: TextAlign.center),
           ],
         ],
       ),
@@ -38,10 +38,13 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline,
-                size: 48, color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+            Text(context.errorText(message), textAlign: TextAlign.center),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
               OutlinedButton.icon(
@@ -71,11 +74,13 @@ class EmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon ?? Icons.inbox_outlined,
-                size: 48,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              icon ?? Icons.inbox_outlined,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+            Text(context.ui(message), textAlign: TextAlign.center),
           ],
         ),
       ),

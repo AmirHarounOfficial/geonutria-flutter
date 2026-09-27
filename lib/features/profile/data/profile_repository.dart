@@ -15,7 +15,9 @@ class ProfileRepository {
   // --- Profile Operations ---
   Future<UserProfile> getProfile(int userId) async {
     if (userId <= 0) {
-      throw const AppException('User ID is missing or invalid. Please login again.');
+      throw const AppException(
+        'User ID is missing or invalid. Please login again.',
+      );
     }
     final data = await _api.get('/profile/', query: {'user_id': userId});
     if (data is Map) {
@@ -52,7 +54,11 @@ class ProfileRepository {
     if (age != null) payload['age'] = age;
     if (sex != null) payload['sex'] = sex;
 
-    await _api.put('/profile/update', query: {'user_id': userId}, body: payload);
+    await _api.put(
+      '/profile/update',
+      query: {'user_id': userId},
+      body: payload,
+    );
   }
 
   Future<void> changePassword(
@@ -65,7 +71,11 @@ class ProfileRepository {
     if (oldPassword != null && oldPassword.isNotEmpty) {
       payload['old_password'] = oldPassword;
     }
-    await _api.post('/profile/password', query: {'user_id': userId}, body: payload);
+    await _api.post(
+      '/profile/password',
+      query: {'user_id': userId},
+      body: payload,
+    );
   }
 
   Future<void> uploadPicture(int userId, XFile file) async {
@@ -88,12 +98,19 @@ class ProfileRepository {
       'member_email': memberEmail,
       'shared_credits': sharedCredits,
     };
-    await _api.post('/profile/team/add', query: {'user_id': userId}, body: payload);
+    await _api.post(
+      '/profile/team/add',
+      query: {'user_id': userId},
+      body: payload,
+    );
   }
 
   Future<void> removeTeamMember(int userId, int memberId) async {
     if (userId <= 0) throw const AppException('Invalid user ID');
-    await _api.delete('/profile/team/remove/$memberId', query: {'user_id': userId});
+    await _api.delete(
+      '/profile/team/remove/$memberId',
+      query: {'user_id': userId},
+    );
   }
 
   // --- Assets Operations ---
@@ -154,7 +171,11 @@ class ProfileRepository {
   }
 
   Future<void> createFarm(int userId, Map<String, dynamic> farmData) async {
-    await _api.post('/assets/farms', query: {'user_id': userId}, body: farmData);
+    await _api.post(
+      '/assets/farms',
+      query: {'user_id': userId},
+      body: farmData,
+    );
   }
 
   Future<void> createCrop(Map<String, dynamic> cropData) async {

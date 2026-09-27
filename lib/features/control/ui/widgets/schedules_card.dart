@@ -19,18 +19,18 @@ class SchedulesCard extends StatelessWidget {
       buildWhen: (a, b) =>
           a.schedules != b.schedules || a.actuators != b.actuators,
       builder: (context, state) {
-        if (state.actuators.isEmpty) return const SizedBox.shrink();
+        if (state.actuators.isEmpty) return SizedBox.shrink();
 
         return Card(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.schedule, size: 20),
-                    const SizedBox(width: 8),
+                    Icon(Icons.schedule, size: 20),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         context.tr('automations'),
@@ -39,14 +39,14 @@ class SchedulesCard extends StatelessWidget {
                     ),
                     TextButton.icon(
                       onPressed: () => openScheduleEditor(context, null),
-                      icon: const Icon(Icons.add, size: 18),
+                      icon: Icon(Icons.add, size: 18),
                       label: Text(context.tr('add_rule')),
                     ),
                   ],
                 ),
                 if (state.schedules.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+                    padding: EdgeInsets.fromLTRB(0, 4, 0, 12),
                     child: Text(
                       context.tr('automations_empty'),
                       style: Theme.of(context).textTheme.bodySmall,
@@ -87,7 +87,7 @@ class _ScheduleRow extends StatelessWidget {
                   ? theme.colorScheme.primary
                   : theme.colorScheme.outline,
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +104,7 @@ class _ScheduleRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    describeSchedule(schedule),
+                    describeSchedule(schedule, context: context),
                     maxLines: 2,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
@@ -129,14 +129,17 @@ class _ScheduleRow extends StatelessWidget {
                   context.read<ControlCubit>().deleteSchedule(schedule.id!);
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Edit')),
-                PopupMenuItem(value: 'delete', child: Text('Delete')),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'edit', child: Text(context.ui('Edit'))),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text(context.ui('Delete')),
+                ),
               ],
             ),
           ],
         ),
-        const Divider(height: 4),
+        Divider(height: 4),
       ],
     );
   }
@@ -145,15 +148,17 @@ class _ScheduleRow extends StatelessWidget {
 /// Plain-language summary of a schedule, e.g.
 /// "Every day at 06:30 · Pump → on for 15 min" or
 /// "Soil Moisture below 30 · Pump → on".
-String describeSchedule(Schedule s) {
-  final target = s.actuatorName ?? 'Actuator ${s.actuatorId}';
+String describeSchedule(Schedule s, {BuildContext? context}) {
+  String label(String value) => context?.ui(value) ?? value;
+  final target = s.actuatorName ?? '${label('Actuator')} ${s.actuatorId}';
   final duration = s.durationMinutes != null
-      ? ' for ${s.durationMinutes} min'
+      ? ' · ${s.durationMinutes} ${label('min')}'
       : '';
-  final action = '$target → ${s.action}$duration';
+  final action = '$target → ${label(s.action)}$duration';
 
   if (s.triggerType == TriggerType.threshold) {
-    final metric = kStandardMetrics[s.sensor] ?? s.sensor ?? 'Sensor';
+    final metric =
+        kStandardMetrics[s.sensor?.toLowerCase()] ?? s.sensor ?? 'Sensor';
     final op = switch (s.operator) {
       '<' => 'below',
       '<=' => 'at or below',
@@ -162,22 +167,26 @@ String describeSchedule(Schedule s) {
       _ => 'above',
     };
     final value = s.threshold?.toStringAsFixed(1) ?? '?';
-    return '$metric $op $value · $action';
+    return '${label(metric)} ${label(op)} $value · $action';
   }
 
-  final when = describeCron(s.cronExpression);
+  final when = describeCron(s.cronExpression, context: context);
   return '$when · $action';
 }
 
 /// Turns a cron expression back into something a farmer can read.
 /// Falls back to showing the raw expression rather than guessing wrongly.
-String describeCron(String? cron) {
-  if (cron == null || cron.trim().isEmpty) return 'No schedule';
+String describeCron(String? cron, {BuildContext? context}) {
+  String label(String value) => context?.ui(value) ?? value;
+  if (cron == null || cron.trim().isEmpty) return label('No schedule');
   final parsed = parseCron(cron);
   final hh = parsed.hour.toString().padLeft(2, '0');
   final mm = parsed.minute.toString().padLeft(2, '0');
-  if (parsed.days.isEmpty) return 'Every day at $hh:$mm';
+  if (parsed.days.isEmpty) return '${label('Every day at')} $hh:$mm';
   // Keep chip order stable rather than set order.
-  final ordered = kScheduleDays.where(parsed.days.contains).join(', ');
-  return '$ordered at $hh:$mm';
+  final ordered = kScheduleDays
+      .where(parsed.days.contains)
+      .map(label)
+      .join(', ');
+  return '$ordered ${label('at')} $hh:$mm';
 }

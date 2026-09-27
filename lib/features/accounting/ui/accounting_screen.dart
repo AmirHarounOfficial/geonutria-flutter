@@ -52,8 +52,7 @@ class _AccountingView extends StatelessWidget {
   List<_Row> _flatten(AccountingState state, List<AccountingNode> roots) {
     final rows = <_Row>[];
     void walk(AccountingNode node, int depth) {
-      final children =
-          state.childrenOf[node.id] ?? const <AccountingNode>[];
+      final children = state.childrenOf[node.id] ?? <AccountingNode>[];
       rows.add(_Row(node, depth, children.isNotEmpty));
       if (!node.isExpanded) return;
       for (final child in children) {
@@ -73,7 +72,7 @@ class _AccountingView extends StatelessWidget {
       listenWhen: (a, b) => a.error != b.error && b.error != null,
       listener: (ctx, state) {
         ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text(state.error!)),
+          SnackBar(content: Text(context.errorText(state.error!))),
         );
         ctx.read<AccountingCubit>().clearError();
       },
@@ -84,7 +83,7 @@ class _AccountingView extends StatelessWidget {
             children: [
               _YearBar(state: state),
               if (state.status == AccountingStatus.loading)
-                const Expanded(child: LoadingView())
+                Expanded(child: LoadingView())
               else if (state.status == AccountingStatus.error)
                 Expanded(
                   child: ErrorView(
@@ -97,10 +96,10 @@ class _AccountingView extends StatelessWidget {
                   child: RefreshIndicator(
                     onRefresh: () => cubit.load(),
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 96),
                       children: [
                         _SummaryCard(state: state),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         _Section(
                           title: context.tr('revenues'),
                           icon: Icons.trending_up,
@@ -111,7 +110,7 @@ class _AccountingView extends StatelessWidget {
                           repo: repo,
                           state: state,
                         ),
-                        const SizedBox(height: 20),
+                        SizedBox(height: 20),
                         _Section(
                           title: context.tr('expenses'),
                           icon: Icons.trending_down,
@@ -136,7 +135,7 @@ class _AccountingView extends StatelessWidget {
                     advisor: context.read<AdvisorCubit>(),
                     accounting: cubit,
                   ),
-                  icon: const Icon(Icons.insights_outlined),
+                  icon: Icon(Icons.insights_outlined),
                   label: Text(context.tr('ai_advisor')),
                 ),
         );
@@ -156,7 +155,7 @@ class _YearBar extends StatelessWidget {
     // that is noise in a dropdown.
     final years = [for (var y = now + 1; y >= now - 5; y--) y];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
           Expanded(
@@ -164,7 +163,7 @@ class _YearBar extends StatelessWidget {
               initialValue: years.contains(state.year) ? state.year : now,
               decoration: InputDecoration(
                 labelText: context.tr('fiscal_year'),
-                prefixIcon: const Icon(Icons.calendar_month_outlined),
+                prefixIcon: Icon(Icons.calendar_month_outlined),
                 isDense: true,
               ),
               items: [
@@ -204,7 +203,7 @@ class _SummaryCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           children: [
             Row(
@@ -230,7 +229,7 @@ class _SummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const Divider(height: 24),
+            Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -243,7 +242,7 @@ class _SummaryCard extends StatelessWidget {
                   size: 18,
                   color: netColor,
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   '${context.tr('net_profit')}: ',
                   style: theme.textTheme.bodyMedium,
@@ -255,7 +254,7 @@ class _SummaryCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   '· $verdict',
                   style: theme.textTheme.labelMedium?.copyWith(color: netColor),
@@ -290,7 +289,7 @@ class _Figure extends StatelessWidget {
             color: theme.colorScheme.outline,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         FittedBox(
           child: Text(
             formatMoney(context, value),
@@ -333,19 +332,19 @@ class _Section extends StatelessWidget {
         Row(
           children: [
             Icon(icon, color: color, size: 20),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(title, style: theme.textTheme.titleSmall),
-            const Spacer(),
+            Spacer(),
             Text(
               formatMoney(context, total),
               style: theme.textTheme.titleSmall?.copyWith(color: color),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         if (rows.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
               context.tr('no_lines_yet'),
               style: theme.textTheme.bodySmall?.copyWith(
@@ -356,10 +355,10 @@ class _Section extends StatelessWidget {
         else
           for (final row in rows)
             _NodeRow(row: row, repo: repo, state: state, accent: color),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         TextButton.icon(
           onPressed: () => cubit.addNode(nodeType: nodeType),
-          icon: const Icon(Icons.add, size: 18),
+          icon: Icon(Icons.add, size: 18),
           label: Text(context.tr('add_line')),
         ),
       ],
@@ -390,10 +389,7 @@ class _NodeRow extends StatelessWidget {
     final total = state.totals[node.id] ?? 0;
 
     return Padding(
-      padding: EdgeInsetsDirectional.only(
-        start: row.depth * 16.0,
-        bottom: 6,
-      ),
+      padding: EdgeInsetsDirectional.only(start: row.depth * 16.0, bottom: 6),
       child: Material(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(10),
@@ -408,7 +404,7 @@ class _NodeRow extends StatelessWidget {
             computedTotal: total,
           ),
           child: Padding(
-            padding: const EdgeInsetsDirectional.only(
+            padding: EdgeInsetsDirectional.only(
               start: 4,
               end: 12,
               top: 6,
@@ -426,7 +422,7 @@ class _NodeRow extends StatelessWidget {
                     onPressed: () => cubit.toggleExpanded(node.id),
                   )
                 else
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -456,7 +452,7 @@ class _NodeRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text(
                   formatMoney(context, total),
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -467,11 +463,9 @@ class _NodeRow extends StatelessWidget {
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   tooltip: context.tr('add_sub_line'),
-                  icon: const Icon(Icons.subdirectory_arrow_right, size: 18),
-                  onPressed: () => cubit.addNode(
-                    nodeType: node.nodeType,
-                    parentId: node.id,
-                  ),
+                  icon: Icon(Icons.subdirectory_arrow_right, size: 18),
+                  onPressed: () =>
+                      cubit.addNode(nodeType: node.nodeType, parentId: node.id),
                 ),
               ],
             ),

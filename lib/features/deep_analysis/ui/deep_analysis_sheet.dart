@@ -61,8 +61,9 @@ class _DeepAnalysisSheetState extends State<DeepAnalysisSheet> {
     return FractionallySizedBox(
       heightFactor: 0.92,
       child: BlocConsumer<DeepAnalysisCubit, DeepAnalysisState>(
-        listener: (_, _) =>
-            WidgetsBinding.instance.addPostFrameCallback((_) => _followStream()),
+        listener: (_, _) => WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _followStream(),
+        ),
         builder: (context, state) {
           return Column(
             children: [

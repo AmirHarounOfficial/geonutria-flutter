@@ -8,6 +8,9 @@ class AccountingRepository {
 
   final ApiClient _api;
 
+  void recordReport(Map<String, dynamic> fields) =>
+      _api.reports.record('accounting', fields);
+
   int get _uid => _api.userId ?? 0;
 
   // ── Tree ───────────────────────────────────────────────────────────────

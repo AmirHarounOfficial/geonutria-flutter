@@ -44,28 +44,30 @@ class _OtpScreenState extends State<OtpScreen> {
               state.status == RegisterStatus.awaitingOtp) {
             ScaffoldMessenger.of(ctx)
               ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(content: Text(state.error!)));
+              ..showSnackBar(
+                SnackBar(content: Text(context.errorText(state.error!))),
+              );
           }
         },
         builder: (ctx, state) {
           final busy = state.status == RegisterStatus.verifying;
           return Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(24),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 380),
+                constraints: BoxConstraints(maxWidth: 380),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.mark_email_read_outlined, size: 56),
-                    const SizedBox(height: 16),
+                    Icon(Icons.mark_email_read_outlined, size: 56),
+                    SizedBox(height: 16),
                     Text(
                       context.tr('otp_subtitle'),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     if (state.email != null) ...[
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
                         state.email!,
                         textAlign: TextAlign.center,
@@ -74,13 +76,13 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     TextField(
                       controller: _code,
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       maxLength: 6,
-                      style: const TextStyle(fontSize: 24, letterSpacing: 8),
+                      style: TextStyle(fontSize: 24, letterSpacing: 8),
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
                         counterText: '',
@@ -89,11 +91,11 @@ class _OtpScreenState extends State<OtpScreen> {
                       ),
                       onSubmitted: (_) => _verify(),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     FilledButton(
                       onPressed: busy ? null : _verify,
                       child: busy
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(

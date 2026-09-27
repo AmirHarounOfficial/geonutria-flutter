@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/localized_number.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,12 +23,12 @@ class _FieldSpec {
   final double max;
   final TextEditingController controller;
 
-  double get value => double.tryParse(controller.text.trim()) ?? 0;
+  double get value => parseLocalizedDouble(controller.text.trim()) ?? 0;
 
   String? validate(String? raw) {
     final text = (raw ?? '').trim();
     if (text.isEmpty) return 'Required';
-    final v = double.tryParse(text);
+    final v = parseLocalizedDouble(text);
     if (v == null) return 'Numbers only';
     if (v < min || v > max) {
       return 'Must be ${_fmt(min)}–${_fmt(max)}';
@@ -84,7 +85,9 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('Fix the highlighted values first.')),
+          SnackBar(
+            content: Text(context.ui('Fix the highlighted values first.')),
+          ),
         );
       return;
     }
@@ -107,26 +110,27 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
       key: _formKey,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         children: [
           Text(
             context.tr('manual_entry'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
-            'Enter the readings you have. Values outside a plausible range are '
-            'rejected so the diagnosis stays meaningful.',
+            context.ui(
+              'Enter your readings. Values outside the allowed range are rejected.',
+            ),
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _specs.length,
             // Fixed height rather than an aspect ratio, so an inline error
             // message has somewhere to go instead of overflowing the cell.
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               mainAxisExtent: 84,
               mainAxisSpacing: 8,
@@ -136,31 +140,37 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
               final spec = _specs[i];
               return TextFormField(
                 controller: spec.controller,
-                keyboardType: const TextInputType.numberWithOptions(
+                keyboardType: TextInputType.numberWithOptions(
                   decimal: true,
                   signed: true,
                 ),
                 // Stops letters reaching the field at all; the validator still
                 // catches malformed numbers like "5.5.5" or a lone "-".
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r'[0-9٠-٩۰-۹.٫٬\-]'),
+                  ),
                 ],
-                validator: spec.validate,
+                validator: (value) => spec.validate(value) == null
+                    ? null
+                    : context.ui('Invalid value'),
                 decoration: InputDecoration(
-                  labelText: spec.label,
+                  labelText: context.ui(spec.label),
                   isDense: true,
                   errorMaxLines: 2,
                 ),
               );
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           BlocConsumer<ManualDiagnosisCubit, ManualDiagnosisState>(
             listener: (ctx, state) {
               if (state.state == LoadState.error && state.error != null) {
                 ScaffoldMessenger.of(ctx)
                   ..hideCurrentSnackBar()
-                  ..showSnackBar(SnackBar(content: Text(state.error!)));
+                  ..showSnackBar(
+                    SnackBar(content: Text(context.errorText(state.error!))),
+                  );
               }
             },
             builder: (ctx, state) {
@@ -170,7 +180,7 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
                   FilledButton.icon(
                     onPressed: busy ? null : _run,
                     icon: busy
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
@@ -178,11 +188,11 @@ class _ManualEntryFormState extends State<ManualEntryForm> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.biotech),
+                        : Icon(Icons.biotech),
                     label: Text('${context.tr('run_diagnosis')}  ·  5 ⚡'),
                   ),
                   if (state.result != null) ...[
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     DiagnosisCard(diagnosis: state.result!),
                   ],
                 ],

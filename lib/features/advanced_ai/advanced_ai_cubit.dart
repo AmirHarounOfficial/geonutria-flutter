@@ -52,29 +52,75 @@ class AiTurn extends Equatable {
   ];
 }
 
+class ChatSession extends Equatable {
+  const ChatSession({
+    required this.id,
+    required this.preview,
+    required this.updatedAt,
+    this.turns = const [],
+    this.apiContents = const [],
+  });
+
+  final String id;
+  final String preview;
+  final DateTime updatedAt;
+  final List<AiTurn> turns;
+  final List<Object> apiContents;
+
+  ChatSession copyWith({
+    String? preview,
+    DateTime? updatedAt,
+    List<AiTurn>? turns,
+    List<Object>? apiContents,
+  }) => ChatSession(
+    id: id,
+    preview: preview ?? this.preview,
+    updatedAt: updatedAt ?? this.updatedAt,
+    turns: turns ?? this.turns,
+    apiContents: apiContents ?? this.apiContents,
+  );
+
+  @override
+  List<Object?> get props => [id, preview, updatedAt, turns, apiContents];
+}
+
 class AdvancedAiState extends Equatable {
   const AdvancedAiState({
+    this.currentSessionId = 'default',
+    this.sessions = const [],
     this.turns = const [],
     this.streaming = false,
     this.error,
   });
 
+  final String currentSessionId;
+  final List<ChatSession> sessions;
   final List<AiTurn> turns;
   final bool streaming;
   final String? error;
 
   AdvancedAiState copyWith({
+    String? currentSessionId,
+    List<ChatSession>? sessions,
     List<AiTurn>? turns,
     bool? streaming,
     String? error,
   }) => AdvancedAiState(
+    currentSessionId: currentSessionId ?? this.currentSessionId,
+    sessions: sessions ?? this.sessions,
     turns: turns ?? this.turns,
     streaming: streaming ?? this.streaming,
     error: error,
   );
 
   @override
-  List<Object?> get props => [turns, streaming, error];
+  List<Object?> get props => [
+    currentSessionId,
+    sessions,
+    turns,
+    streaming,
+    error,
+  ];
 }
 
 /// Streaming chat backed by `/v1/openrouter-chat`.
@@ -87,43 +133,100 @@ class AdvancedAiCubit extends Cubit<AdvancedAiState> {
 
   final ApiClient _api;
 
-  /// Kept as API-shaped content so history replays exactly as it was sent —
-  /// a multimodal array when an image was attached, a plain string otherwise.
-  final List<Object> _apiContents = [];
+  List<Object> _apiContents = [];
+  bool _streamingAborted = false;
+  int _generation = 0;
+
+  void stop() {
+    if (!state.streaming) return;
+    _generation++;
+    _streamingAborted = true;
+    if (_apiContents.length.isOdd &&
+        state.turns.isNotEmpty &&
+        !state.turns.last.isUser) {
+      _apiContents.add(state.turns.last.content);
+    }
+    emit(state.copyWith(streaming: false));
+    _saveCurrentSession();
+  }
+
+  void newChat() {
+    stop();
+    _generation++;
+    _streamingAborted = true;
+    final newId = DateTime.now().millisecondsSinceEpoch.toString();
+    _apiContents = [];
+    emit(
+      state.copyWith(
+        currentSessionId: newId,
+        turns: const [],
+        streaming: false,
+        error: null,
+      ),
+    );
+  }
+
+  void selectSession(String sessionId) {
+    stop();
+    _generation++;
+    _streamingAborted = true;
+    final session = state.sessions.firstWhere(
+      (s) => s.id == sessionId,
+      orElse: () => ChatSession(
+        id: sessionId,
+        preview: 'New Chat',
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    _apiContents = [...session.apiContents];
+    emit(
+      state.copyWith(
+        currentSessionId: session.id,
+        turns: session.turns,
+        streaming: false,
+        error: null,
+      ),
+    );
+  }
+
+  void deleteSession(String sessionId) {
+    final nextSessions = state.sessions
+        .where((s) => s.id != sessionId)
+        .toList();
+    if (state.currentSessionId == sessionId) {
+      newChat();
+      emit(state.copyWith(sessions: nextSessions));
+    } else {
+      emit(state.copyWith(sessions: nextSessions));
+    }
+  }
 
   Future<void> send(String text, {XFile? image, String lang = 'en'}) async {
     final q = text.trim();
     if ((q.isEmpty && image == null) || state.streaming) return;
 
+    final generation = ++_generation;
     String? previewUrl;
     Map<String, dynamic>? imageBlock;
 
     if (image != null) {
       final bytes = await image.readAsBytes();
-      try {
-        // The server compresses and returns the block to embed.
-        imageBlock = await _api.uploadChatMedia(
-          bytes: bytes,
-          fileName: image.name,
-          prompt: q,
-        );
-        previewUrl = (imageBlock?['image_url'] as Map?)?['url']?.toString();
-      } on AppException {
-        // Upload is an optimisation, not a requirement — fall back to encoding
-        // locally so an attachment still works if the endpoint is unavailable.
-        final mime = image.mimeType ?? 'image/jpeg';
-        previewUrl = 'data:$mime;base64,${base64Encode(bytes)}';
-        imageBlock = {
-          'type': 'image_url',
-          'image_url': {'url': previewUrl},
-        };
-      }
+      // Match the dashboard's FileReader data URL. The upload endpoint can
+      // return application/octet-stream, which vision providers reject.
+      final mime = _imageMime(bytes, image);
+      previewUrl = 'data:$mime;base64,${base64Encode(bytes)}';
+      imageBlock = {
+        'type': 'image_url',
+        'image_url': {'url': previewUrl},
+      };
     }
 
+    if (isClosed || generation != _generation) return;
     final Object userContent = imageBlock == null
         ? q
         : [
-            if (q.isNotEmpty) {'type': 'text', 'text': q},
+            {'type': 'text', 'text': q},
             imageBlock,
           ];
 
@@ -156,6 +259,8 @@ class AdvancedAiCubit extends Cubit<AdvancedAiState> {
       emit(state.copyWith(turns: turns));
     }
 
+    _streamingAborted = false;
+
     try {
       final stream = _api.streamChatTokens(
         '/v1/openrouter-chat',
@@ -172,7 +277,7 @@ class AdvancedAiCubit extends Cubit<AdvancedAiState> {
       );
 
       await for (final token in stream) {
-        if (isClosed) return;
+        if (isClosed || generation != _generation || _streamingAborted) return;
 
         if (token.isReasoning) {
           thinking.write(token.text);
@@ -210,16 +315,59 @@ class AdvancedAiCubit extends Cubit<AdvancedAiState> {
         push(isThinking: false);
       }
 
+      if (isClosed || generation != _generation) return;
       _apiContents.add(answer.toString());
       emit(state.copyWith(streaming: false));
+      _saveCurrentSession();
     } on AppException catch (e) {
+      if (isClosed || generation != _generation) return;
       _fail(answer, thinking, e.message);
     } catch (_) {
+      if (isClosed || generation != _generation) return;
       _fail(answer, thinking, 'Streaming failed. Please try again.');
     }
   }
 
+  void _saveCurrentSession() {
+    if (state.turns.isEmpty) return;
+    final firstUserTurn = state.turns.firstWhere(
+      (t) => t.isUser && t.content.isNotEmpty,
+      orElse: () => state.turns.first,
+    );
+    final preview = firstUserTurn.content.isNotEmpty
+        ? (firstUserTurn.content.length > 35
+              ? '${firstUserTurn.content.substring(0, 35)}…'
+              : firstUserTurn.content)
+        : 'Image inquiry';
+
+    final updated = ChatSession(
+      id: state.currentSessionId,
+      preview: preview,
+      updatedAt: DateTime.now(),
+      turns: state.turns,
+      apiContents: List<Object>.of(_apiContents),
+    );
+
+    final sessions = [...state.sessions];
+    final idx = sessions.indexWhere((s) => s.id == state.currentSessionId);
+    if (idx >= 0) {
+      sessions[idx] = updated;
+    } else {
+      sessions.insert(0, updated);
+    }
+    emit(state.copyWith(sessions: sessions));
+  }
+
   void _fail(StringBuffer answer, StringBuffer thinking, String error) {
+    // Only completed pairs belong in API history. A failed request must not
+    // shift subsequent user messages into the assistant role.
+    if (_apiContents.length.isOdd) {
+      if (answer.isEmpty) {
+        _apiContents.removeLast();
+      } else {
+        _apiContents.add(answer.toString());
+      }
+    }
     final turns = [...state.turns];
     if (turns.isNotEmpty) {
       turns[turns.length - 1] = turns.last.copyWith(
@@ -229,10 +377,45 @@ class AdvancedAiCubit extends Cubit<AdvancedAiState> {
       );
     }
     emit(state.copyWith(turns: turns, streaming: false, error: error));
+    _saveCurrentSession();
   }
 
   void clear() {
+    _generation++;
     _apiContents.clear();
     emit(const AdvancedAiState());
+  }
+
+  static String _imageMime(List<int> bytes, XFile image) {
+    bool startsWith(List<int> prefix) =>
+        bytes.length >= prefix.length &&
+        List.generate(
+          prefix.length,
+          (i) => bytes[i] == prefix[i],
+        ).every((matches) => matches);
+    if (startsWith([0xff, 0xd8, 0xff])) return 'image/jpeg';
+    if (startsWith([0x89, 0x50, 0x4e, 0x47])) return 'image/png';
+    if (startsWith([0x47, 0x49, 0x46, 0x38])) return 'image/gif';
+    if (startsWith([0x52, 0x49, 0x46, 0x46]) &&
+        bytes.length >= 12 &&
+        ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WEBP') {
+      return 'image/webp';
+    }
+    final mime = image.mimeType;
+    if (mime != null && mime.startsWith('image/')) return mime;
+    switch (image.name.split('.').last.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'heif':
+        return 'image/heif';
+      default:
+        return 'image/jpeg';
+    }
   }
 }

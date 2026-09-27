@@ -23,23 +23,25 @@ class SettingsState extends Equatable {
 /// Holds locale + theme, persisting both via [SecureSession].
 class SettingsCubit extends Cubit<SettingsState> {
   SettingsCubit(this._session)
-      : super(const SettingsState(
-          locale: Locale('en'),
-          themeMode: ThemeMode.system,
-        ));
+    : super(
+        const SettingsState(locale: Locale('en'), themeMode: ThemeMode.system),
+      );
 
   final SecureSession _session;
 
   Future<void> load() async {
     final localeCode = await _session.readLocale();
     final themeStr = await _session.readThemeMode();
-    emit(SettingsState(
-      locale: Locale(localeCode ?? 'en'),
-      themeMode: _parseTheme(themeStr),
-    ));
+    emit(
+      SettingsState(
+        locale: Locale(localeCode == 'ar' ? 'ar' : 'en'),
+        themeMode: _parseTheme(themeStr),
+      ),
+    );
   }
 
   Future<void> setLocale(String code) async {
+    if (code != 'en' && code != 'ar') return;
     await _session.writeLocale(code);
     emit(state.copyWith(locale: Locale(code)));
   }
@@ -53,8 +55,8 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   Future<void> toggleTheme() => setThemeMode(
-        state.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
-      );
+    state.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
+  );
 
   ThemeMode _parseTheme(String? s) {
     switch (s) {

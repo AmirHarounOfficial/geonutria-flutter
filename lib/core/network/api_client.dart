@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import '../error/app_exception.dart';
 import '../logging/in_app_log_service.dart';
 import '../storage/secure_session.dart';
 import 'paywall_notifier.dart';
+import '../../features/report/report_store.dart';
 
 /// Thin wrapper over Dio that mirrors the web `apiService.js`:
 /// generic get/post/put/delete + multipart upload + PDF download, with the
@@ -27,12 +29,14 @@ class ChatToken {
 }
 
 class ApiClient {
-  ApiClient(this._session, {PaywallNotifier? paywall})
+  ApiClient(this._session, {PaywallNotifier? paywall, Dio? dio})
     : _paywall = paywall,
-      _dio = Dio(_options) {
+      _dio = dio ?? Dio(_options) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
+          reports.useUser(userId);
+          options.extra['session_user_id'] = userId;
           final queryStr = options.queryParameters.isNotEmpty
               ? '\nQuery Parameters:\n${_formatJson(options.queryParameters)}'
               : '';
@@ -44,17 +48,29 @@ class ApiClient {
             url: options.uri.toString(),
             statusCode: null,
             message: 'Request ->',
-            details: 'Headers: ${options.headers}$queryStr$bodyStr',
+            details: kDebugMode && !_sensitivePath(options.path)
+                ? 'Headers: ${_redact(options.headers)}$queryStr$bodyStr'
+                : null,
           );
           handler.next(options);
         },
         onResponse: (response, handler) {
+          if (response.requestOptions.extra['session_user_id'] == userId) {
+            reports.capture(
+              response.requestOptions.path,
+              response.data,
+              body: response.requestOptions.data,
+              query: response.requestOptions.queryParameters,
+            );
+          }
           InAppLogService.instance.network(
             method: response.requestOptions.method,
             url: response.requestOptions.uri.toString(),
             statusCode: response.statusCode,
             message: 'Response <- OK',
-            details: 'Incoming Response Body:\n${_formatJson(response.data)}',
+            details: kDebugMode && !_sensitivePath(response.requestOptions.path)
+                ? 'Incoming Response Body:\n${_formatJson(response.data)}'
+                : null,
           );
           handler.next(response);
         },
@@ -103,6 +119,44 @@ class ApiClient {
   final SecureSession _session;
   final PaywallNotifier? _paywall;
   final Dio _dio;
+  final ReportStore reports = ReportStore();
+
+  Future<String?> reportImage(String? path) async {
+    if (path == null || path.isEmpty) return null;
+    try {
+      final response = await _dio.get<List<int>>(
+        Env.resolveMedia(path),
+        options: Options(
+          responseType: ResponseType.bytes,
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+      final bytes = response.data;
+      if (bytes == null || bytes.isEmpty || bytes.length > 10000000)
+        return null;
+      final codec = await ui.instantiateImageCodec(
+        Uint8List.fromList(bytes),
+        targetWidth: 800,
+        allowUpscaling: false,
+      );
+      try {
+        final frame = await codec.getNextFrame();
+        try {
+          final data = await frame.image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
+          if (data == null || data.lengthInBytes > 500000) return null;
+          return 'data:image/png;base64,${base64Encode(data.buffer.asUint8List())}';
+        } finally {
+          frame.image.dispose();
+        }
+      } finally {
+        codec.dispose();
+      }
+    } catch (_) {
+      return null;
+    }
+  }
 
   static final BaseOptions _options = BaseOptions(
     baseUrl: Env.apiBaseUrl,
@@ -194,12 +248,16 @@ class ApiClient {
   /// two are kept apart rather than concatenated — otherwise the chain of
   /// thought lands in the middle of the reply.
   Stream<ChatToken> streamChatTokens(String path, {Object? body}) async* {
-    final resp = await _dio.post(
-      path,
-      data: body,
-      options: Options(
-        responseType: ResponseType.stream,
-        headers: {'Accept': 'text/event-stream'},
+    final streamUser = userId;
+    final answer = StringBuffer();
+    final resp = await _wrap(
+      () => _dio.post(
+        path,
+        data: body,
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: {'Accept': 'text/event-stream'},
+        ),
       ),
     );
 
@@ -213,11 +271,13 @@ class ApiClient {
     } else if (data is String) {
       lineStream = Stream.fromIterable(data.split('\n'));
     } else if (data is List<int>) {
-      lineStream = Stream.value(utf8.decode(data))
-          .transform(const LineSplitter());
+      lineStream = Stream.value(
+        utf8.decode(data),
+      ).transform(const LineSplitter());
     } else if (data != null) {
-      lineStream = Stream.value(data.toString())
-          .transform(const LineSplitter());
+      lineStream = Stream.value(
+        data.toString(),
+      ).transform(const LineSplitter());
     } else {
       return;
     }
@@ -254,6 +314,7 @@ class ApiClient {
             }
             final content = delta['content'];
             if (content is String && content.isNotEmpty) {
+              answer.write(content);
               yield ChatToken.content(content);
             }
           }
@@ -261,6 +322,7 @@ class ApiClient {
           // Some providers send a plain message instead of a delta.
           final content = (json['message'] as Map?)?['content'];
           if (content is String && content.isNotEmpty) {
+            answer.write(content);
             yield ChatToken.content(content);
           }
         }
@@ -269,6 +331,9 @@ class ApiClient {
       } catch (_) {
         // Ignore keep-alive / non-JSON lines.
       }
+    }
+    if (streamUser == userId && body is Map) {
+      reports.captureStream(path, body, answer.toString());
     }
   }
 
@@ -304,7 +369,18 @@ class ApiClient {
           headers: {'Accept': 'application/pdf'},
         ),
       );
-      return Uint8List.fromList(res.data as List<int>);
+      final bytes = Uint8List.fromList(res.data as List<int>);
+      if (!(res.headers.value('content-type') ?? '').toLowerCase().contains(
+            'application/pdf',
+          ) ||
+          bytes.length < 5 ||
+          utf8.decode(bytes.take(5).toList(), allowMalformed: true) !=
+              '%PDF-') {
+        throw const AppException(
+          'The server did not return a valid PDF. Please try again.',
+        );
+      }
+      return bytes;
     });
   }
 
@@ -316,6 +392,13 @@ class ApiClient {
       if (err is AppException) throw err;
       final serverMsg = _extractMessage(e.response?.data);
       if (serverMsg != null && serverMsg.isNotEmpty) {
+        if (serverMsg.trim() == 'Internal Server Error' ||
+            e.response?.statusCode == 500) {
+          throw const AppException(
+            'Server temporarily unavailable. Please try again shortly.',
+            statusCode: 500,
+          );
+        }
         throw AppException(serverMsg, statusCode: e.response?.statusCode);
       }
       if (e.type == DioExceptionType.connectionTimeout ||
@@ -323,7 +406,8 @@ class ApiClient {
           e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.unknown) {
         if (kIsWeb) {
-          final isXmlErr = e.toString().contains('XMLHttpRequest') ||
+          final isXmlErr =
+              e.toString().contains('XMLHttpRequest') ||
               e.message?.contains('XMLHttpRequest') == true ||
               e.error?.toString().contains('XMLHttpRequest') == true;
           if (isXmlErr) {
@@ -338,6 +422,12 @@ class ApiClient {
         throw const NetworkException();
       }
       final code = e.response?.statusCode;
+      if (code == 500) {
+        throw const AppException(
+          'Server temporarily unavailable. Please try again shortly.',
+          statusCode: 500,
+        );
+      }
       final msg = 'Request failed${code != null ? ' ($code)' : ''}';
       throw AppException(msg, statusCode: code);
     }
@@ -352,6 +442,7 @@ class ApiClient {
 }
 
 String _formatJson(dynamic data) {
+  data = _redact(data);
   if (data == null) return 'null';
   try {
     if (data is Map || data is List) {
@@ -365,4 +456,26 @@ String _formatJson(dynamic data) {
     }
   } catch (_) {}
   return '$data';
+}
+
+bool _sensitivePath(String path) =>
+    path.contains('login') ||
+    path.contains('register') ||
+    path.contains('password') ||
+    path.contains('otp');
+
+dynamic _redact(dynamic data) {
+  if (data is Map)
+    return {
+      for (final entry in data.entries)
+        entry.key:
+            RegExp(
+              'password|token|authorization|cookie|otp',
+              caseSensitive: false,
+            ).hasMatch('${entry.key}')
+            ? '[REDACTED]'
+            : _redact(entry.value),
+    };
+  if (data is List) return data.map(_redact).toList();
+  return data;
 }

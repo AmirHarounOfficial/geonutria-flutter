@@ -48,47 +48,53 @@ class _LeafViewState extends State<_LeafView> {
       builder: (context, state) {
         final busy = state.status == LeafStatus.processing;
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           children: [
             SegmentedButton<LeafMode>(
               segments: [
                 ButtonSegment(
-                    value: LeafMode.general,
-                    label: Text(context.tr('leaf_general')),
-                    icon: const Icon(Icons.local_florist)),
+                  value: LeafMode.general,
+                  label: Text(context.tr('leaf_general')),
+                  icon: Icon(Icons.local_florist),
+                ),
                 ButtonSegment(
-                    value: LeafMode.palm,
-                    label: Text(context.tr('leaf_palm')),
-                    icon: const Icon(Icons.park)),
+                  value: LeafMode.palm,
+                  label: Text(context.tr('leaf_palm')),
+                  icon: Icon(Icons.park),
+                ),
               ],
               selected: {state.mode},
               onSelectionChanged: busy
                   ? null
                   : (s) => context.read<LeafDoctorCubit>().setMode(s.first),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             _ImageArea(file: _file, onPick: busy ? null : _pick),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             FilledButton.icon(
               onPressed: (_file == null || busy)
                   ? null
                   : () => context.read<LeafDoctorCubit>().diagnose(_file!),
               icon: busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.biotech),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(Icons.biotech),
               label: Text(
-                  '${context.tr('run_diagnosis')}  ·  ${state.mode == LeafMode.palm ? 5 : 10} ⚡'),
+                '${context.tr('run_diagnosis')}  ·  ${state.mode == LeafMode.palm ? 5 : 10} ⚡',
+              ),
             ),
             if (state.status == LeafStatus.failure && state.error != null) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               _ErrorBanner(message: state.error!),
             ],
             if (state.result != null) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               _ResultCard(result: state.result!),
             ],
           ],
@@ -113,17 +119,18 @@ class _ImageArea extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant),
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
         clipBehavior: Clip.antiAlias,
         child: file == null
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.add_a_photo_outlined, size: 40),
                   SizedBox(height: 8),
-                  Text('Tap to add a leaf photo'),
+                  Text(context.ui('Tap to add a leaf photo')),
                 ],
               )
             : PickedImage(file: file!),
@@ -139,38 +146,128 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final healthy = result.diagnosis.toLowerCase().contains('healthy');
-    final color = healthy ? Colors.green : Colors.orange;
+    final color = healthy ? Color(0xFF6B8F71) : Color(0xFFC47A2C);
+    final theme = Theme.of(context);
+
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (result.isolatedImage != null) ...[
-              Center(
-                child: DataUriImage(dataUri: result.isolatedImage!, height: 200),
-              ),
-              const SizedBox(height: 16),
-            ],
             Row(
               children: [
-                Icon(Icons.coronavirus_outlined, color: color),
-                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  child: Icon(
+                    healthy
+                        ? Icons.check_circle_outline
+                        : Icons.coronavirus_outlined,
+                    color: color,
+                  ),
+                ),
+                SizedBox(width: 12),
                 Expanded(
-                  child: Text(result.diagnosis,
-                      style: Theme.of(context).textTheme.titleMedium),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.ui(result.diagnosis),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        '${context.ui('AI Confidence')} ${result.confidence.toStringAsFixed(1)}%',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Confidence: ${result.confidence.toStringAsFixed(1)}%'),
-            const SizedBox(height: 8),
+            SizedBox(height: 12),
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
                 value: (result.confidence / 100).clamp(0, 1),
                 minHeight: 8,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 color: color,
+              ),
+            ),
+            if (result.isolatedImage != null) ...[
+              SizedBox(height: 16),
+              Text(
+                context.ui('YOLO Segmentation & Glow Mask'),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  color: Colors.black,
+                  alignment: Alignment.center,
+                  child: DataUriImage(
+                    dataUri: result.isolatedImage!,
+                    height: 220,
+                  ),
+                ),
+              ),
+            ],
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: healthy
+                    ? Colors.green.withValues(alpha: 0.08)
+                    : Colors.amber.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: healthy
+                      ? Colors.green.withValues(alpha: 0.25)
+                      : Colors.amber.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        healthy
+                            ? Icons.verified
+                            : Icons.medical_services_outlined,
+                        size: 18,
+                        color: color,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        context.ui('AI Health Diagnosis'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    context.ui(
+                      'Confirm the diagnosis with an agricultural specialist before choosing treatment.',
+                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                  ),
+                ],
               ),
             ),
           ],
@@ -189,12 +286,12 @@ class _ErrorBanner extends StatelessWidget {
     return Card(
       color: Theme.of(context).colorScheme.errorContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.error_outline),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Icon(Icons.error_outline),
+            SizedBox(width: 12),
+            Expanded(child: Text(context.errorText(message))),
           ],
         ),
       ),

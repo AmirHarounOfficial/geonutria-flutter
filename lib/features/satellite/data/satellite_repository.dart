@@ -20,18 +20,21 @@ class SatelliteRepository {
     List<List<double>>? polygonCoords,
     int maxCloudCover = 10,
   }) async {
-    final data = await _api.post('/satellite-analysis', body: {
-      'lat': lat,
-      'lon': lon,
-      'radius_km': radiusKm,
-      'start_date': startDate,
-      'end_date': endDate,
-      'compare_value': compareValue,
-      'compare_unit': compareUnit,
-      'polygon_coords': polygonCoords,
-      'max_cloud_cover': maxCloudCover,
-      'user_id': userId,
-    });
+    final data = await _api.post(
+      '/satellite-analysis',
+      body: {
+        'lat': lat,
+        'lon': lon,
+        'radius_km': radiusKm,
+        'start_date': startDate,
+        'end_date': endDate,
+        'compare_value': compareValue,
+        'compare_unit': compareUnit,
+        'polygon_coords': polygonCoords,
+        'max_cloud_cover': maxCloudCover,
+        'user_id': userId,
+      },
+    );
     final map = (data as Map).cast<String, dynamic>();
     if (map['status'] == 'error') {
       throw Exception(map['message'] ?? 'Satellite analysis failed');

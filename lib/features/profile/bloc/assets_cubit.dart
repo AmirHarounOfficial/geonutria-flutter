@@ -50,7 +50,12 @@ class AssetsCubit extends Cubit<AssetsState> {
     double? lon,
   }) async {
     await _repo.createFarm(
-        name: name, address: address, totalArea: area, latitude: lat, longitude: lon);
+      name: name,
+      address: address,
+      totalArea: area,
+      latitude: lat,
+      longitude: lon,
+    );
     await loadFarms();
   }
 

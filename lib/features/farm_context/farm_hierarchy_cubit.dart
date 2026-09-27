@@ -11,9 +11,9 @@ class FarmItem extends Equatable {
   final String name;
 
   factory FarmItem.fromJson(Map<String, dynamic> j) => FarmItem(
-        id: (j['id'] as num).toInt(),
-        name: (j['name'] ?? j['farm_name'] ?? '').toString(),
-      );
+    id: _toInt(j['id']) ?? 0,
+    name: (j['name'] ?? j['farm_name'] ?? '').toString(),
+  );
 
   @override
   List<Object?> get props => [id, name];
@@ -32,11 +32,11 @@ class CropItem extends Equatable {
   final bool isTree;
 
   factory CropItem.fromJson(Map<String, dynamic> j) => CropItem(
-        id: (j['id'] as num).toInt(),
-        farmId: (j['farm_id'] as num).toInt(),
-        name: (j['name'] ?? j['crop_name'] ?? '').toString(),
-        isTree: j['is_tree'] == true || j['is_tree'] == 1,
-      );
+    id: _toInt(j['id']) ?? 0,
+    farmId: _toInt(j['farm_id']) ?? 0,
+    name: (j['name'] ?? j['crop_name'] ?? '').toString(),
+    isTree: j['is_tree'] == true || j['is_tree'] == 1,
+  );
 
   @override
   List<Object?> get props => [id, farmId, name, isTree];
@@ -55,11 +55,11 @@ class TreeItem extends Equatable {
   final String treeCode;
 
   factory TreeItem.fromJson(Map<String, dynamic> j) => TreeItem(
-        id: (j['id'] as num).toInt(),
-        cropId: (j['crop_id'] as num).toInt(),
-        treeName: (j['tree_name'] ?? '').toString(),
-        treeCode: (j['tree_code'] ?? '').toString(),
-      );
+    id: _toInt(j['id']) ?? 0,
+    cropId: _toInt(j['crop_id']) ?? 0,
+    treeName: (j['tree_name'] ?? '').toString(),
+    treeCode: (j['tree_code'] ?? '').toString(),
+  );
 
   @override
   List<Object?> get props => [id, cropId, treeName, treeCode];
@@ -113,30 +113,26 @@ class FarmHierarchyState extends Equatable {
     bool clearFarm = false,
     bool clearCrop = false,
     bool clearTree = false,
-  }) =>
-      FarmHierarchyState(
-        farms: farms ?? this.farms,
-        crops: crops ?? this.crops,
-        trees: trees ?? this.trees,
-        selectedFarmId:
-            clearFarm ? null : (selectedFarmId ?? this.selectedFarmId),
-        selectedCropId:
-            clearCrop ? null : (selectedCropId ?? this.selectedCropId),
-        selectedTreeId:
-            clearTree ? null : (selectedTreeId ?? this.selectedTreeId),
-        isLoading: isLoading ?? this.isLoading,
-      );
+  }) => FarmHierarchyState(
+    farms: farms ?? this.farms,
+    crops: crops ?? this.crops,
+    trees: trees ?? this.trees,
+    selectedFarmId: clearFarm ? null : (selectedFarmId ?? this.selectedFarmId),
+    selectedCropId: clearCrop ? null : (selectedCropId ?? this.selectedCropId),
+    selectedTreeId: clearTree ? null : (selectedTreeId ?? this.selectedTreeId),
+    isLoading: isLoading ?? this.isLoading,
+  );
 
   @override
   List<Object?> get props => [
-        farms,
-        crops,
-        trees,
-        selectedFarmId,
-        selectedCropId,
-        selectedTreeId,
-        isLoading,
-      ];
+    farms,
+    crops,
+    trees,
+    selectedFarmId,
+    selectedCropId,
+    selectedTreeId,
+    isLoading,
+  ];
 }
 
 class FarmHierarchyCubit extends Cubit<FarmHierarchyState> {
@@ -163,12 +159,14 @@ class FarmHierarchyCubit extends Cubit<FarmHierarchyState> {
             .map((t) => TreeItem.fromJson(t as Map<String, dynamic>))
             .toList();
 
-        emit(state.copyWith(
-          farms: fList,
-          crops: cList,
-          trees: tList,
-          isLoading: false,
-        ));
+        emit(
+          state.copyWith(
+            farms: fList,
+            crops: cList,
+            trees: tList,
+            isLoading: false,
+          ),
+        );
       }
     } catch (_) {
       emit(state.copyWith(isLoading: false));
@@ -176,19 +174,14 @@ class FarmHierarchyCubit extends Cubit<FarmHierarchyState> {
   }
 
   void selectFarm(int? farmId) {
-    emit(state.copyWith(
-      selectedFarmId: farmId,
-      clearCrop: true,
-      clearTree: true,
-    ));
+    emit(
+      state.copyWith(selectedFarmId: farmId, clearCrop: true, clearTree: true),
+    );
     _syncWithContextStore();
   }
 
   void selectCrop(int? cropId) {
-    emit(state.copyWith(
-      selectedCropId: cropId,
-      clearTree: true,
-    ));
+    emit(state.copyWith(selectedCropId: cropId, clearTree: true));
     _syncWithContextStore();
   }
 
@@ -216,4 +209,10 @@ class FarmHierarchyCubit extends Cubit<FarmHierarchyState> {
     );
     await _contextStore.write(updated);
   }
+}
+
+int? _toInt(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toInt();
+  return int.tryParse('$v');
 }

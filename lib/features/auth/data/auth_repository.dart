@@ -101,7 +101,10 @@ class AuthRepository {
     return (map['ai_credits'] as num?)?.toInt() ?? 0;
   }
 
-  Future<void> logout() => _session.clear();
+  Future<void> logout() async {
+    _api.reports.useUser(null);
+    await _session.clear();
+  }
 
   Future<void> _persist(LoginResult r) =>
       _session.save(userId: r.userId, token: r.token, role: r.role);

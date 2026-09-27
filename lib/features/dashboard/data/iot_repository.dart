@@ -23,6 +23,8 @@ class IotRepository {
 
   /// `GET /iot-status?user_id=&device_id=` (costs 5 credits).
   Future<IotStatus> getStatus(int deviceId) async {
+    _api.reports.useUser(_api.userId);
+    _api.reports.selectDevice(deviceId);
     final data = await _api.get(
       '/iot-status',
       query: _api.authQuery({'device_id': deviceId}),

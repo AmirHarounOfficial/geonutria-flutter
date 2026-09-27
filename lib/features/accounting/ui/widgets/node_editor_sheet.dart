@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/localized_number.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -93,8 +94,8 @@ class _NodeEditorSheetState extends State<NodeEditorSheet> {
   /// Keeps the amount in step when a unit price and quantity are given, so the
   /// two can't disagree with the total the tree sums.
   void _recalc() {
-    final price = double.tryParse(_unitPrice.text.trim());
-    final qty = double.tryParse(_quantity.text.trim());
+    final price = parseLocalizedDouble(_unitPrice.text.trim());
+    final qty = parseLocalizedDouble(_quantity.text.trim());
     if (price == null || qty == null) return;
     _amount.text = _trim(price * qty);
     setState(() {});
@@ -112,9 +113,9 @@ class _NodeEditorSheetState extends State<NodeEditorSheet> {
       categoryNameAr: _pickedCategory?.nameAr,
       totalAmount: widget.hasChildren
           ? null
-          : double.tryParse(_amount.text.trim()) ?? 0,
-      unitPrice: double.tryParse(_unitPrice.text.trim()),
-      quantity: double.tryParse(_quantity.text.trim()),
+          : parseLocalizedDouble(_amount.text.trim()) ?? 0,
+      unitPrice: parseLocalizedDouble(_unitPrice.text.trim()),
+      quantity: parseLocalizedDouble(_quantity.text.trim()),
       frequency: _frequency,
     );
     Navigator.of(context).pop();
@@ -298,7 +299,10 @@ class _NodeEditorSheetState extends State<NodeEditorSheet> {
               ),
               items: [
                 for (final f in Frequency.all)
-                  DropdownMenuItem(value: f, child: Text(context.tr('freq_$f'))),
+                  DropdownMenuItem(
+                    value: f,
+                    child: Text(context.tr('freq_$f')),
+                  ),
               ],
               onChanged: (v) => setState(() => _frequency = v),
             ),
@@ -501,7 +505,9 @@ class _CategoryFieldState extends State<CategoryField> {
                     dense: true,
                     leading: Icon(Icons.add, color: theme.colorScheme.primary),
                     title: Text(
-                      context.tr('add_new_category').replaceAll('{name}', typed),
+                      context
+                          .tr('add_new_category')
+                          .replaceAll('{name}', typed),
                       style: TextStyle(color: theme.colorScheme.primary),
                     ),
                     onTap: _createCategory,

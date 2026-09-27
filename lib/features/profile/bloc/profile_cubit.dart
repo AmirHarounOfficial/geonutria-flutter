@@ -49,35 +49,38 @@ class ProfileState extends Equatable {
     List<AssetMedia>? mediaGallery,
     String? message,
     String? error,
-  }) =>
-      ProfileState(
-        state: state ?? this.state,
-        profile: profile ?? this.profile,
-        team: team ?? this.team,
-        farms: farms ?? this.farms,
-        crops: crops ?? this.crops,
-        trees: trees ?? this.trees,
-        selectedFarm: clearSelectedFarm ? null : (selectedFarm ?? this.selectedFarm),
-        selectedCrop: clearSelectedCrop ? null : (selectedCrop ?? this.selectedCrop),
-        mediaGallery: mediaGallery ?? this.mediaGallery,
-        message: message,
-        error: error,
-      );
+  }) => ProfileState(
+    state: state ?? this.state,
+    profile: profile ?? this.profile,
+    team: team ?? this.team,
+    farms: farms ?? this.farms,
+    crops: crops ?? this.crops,
+    trees: trees ?? this.trees,
+    selectedFarm: clearSelectedFarm
+        ? null
+        : (selectedFarm ?? this.selectedFarm),
+    selectedCrop: clearSelectedCrop
+        ? null
+        : (selectedCrop ?? this.selectedCrop),
+    mediaGallery: mediaGallery ?? this.mediaGallery,
+    message: message,
+    error: error,
+  );
 
   @override
   List<Object?> get props => [
-        state,
-        profile,
-        team,
-        farms,
-        crops,
-        trees,
-        selectedFarm,
-        selectedCrop,
-        mediaGallery,
-        message,
-        error,
-      ];
+    state,
+    profile,
+    team,
+    farms,
+    crops,
+    trees,
+    selectedFarm,
+    selectedCrop,
+    mediaGallery,
+    message,
+    error,
+  ];
 }
 
 class ProfileCubit extends Cubit<ProfileState> {
@@ -97,10 +100,12 @@ class ProfileCubit extends Cubit<ProfileState> {
   Future<void> load() async {
     final uid = _resolveUserId();
     if (uid <= 0) {
-      emit(state.copyWith(
-        state: LoadState.error,
-        error: 'Session expired. Please login again.',
-      ));
+      emit(
+        state.copyWith(
+          state: LoadState.error,
+          error: 'Session expired. Please login again.',
+        ),
+      );
       return;
     }
 
@@ -110,16 +115,23 @@ class ProfileCubit extends Cubit<ProfileState> {
       final team = await _repo.getTeam(uid);
       final farms = await _repo.getFarms(uid);
 
-      emit(state.copyWith(
-        state: LoadState.loaded,
-        profile: profile,
-        team: team,
-        farms: farms,
-      ));
+      emit(
+        state.copyWith(
+          state: LoadState.loaded,
+          profile: profile,
+          team: team,
+          farms: farms,
+        ),
+      );
     } on AppException catch (e) {
       emit(state.copyWith(state: LoadState.error, error: e.message));
     } catch (e) {
-      emit(state.copyWith(state: LoadState.error, error: 'Failed to load profile: $e'));
+      emit(
+        state.copyWith(
+          state: LoadState.error,
+          error: 'Failed to load profile: $e',
+        ),
+      );
     }
   }
 
@@ -132,7 +144,13 @@ class ProfileCubit extends Cubit<ProfileState> {
     final uid = _resolveUserId();
     if (uid <= 0) return;
     try {
-      await _repo.updateProfile(uid, name: name, mobile: mobile, age: age, sex: sex);
+      await _repo.updateProfile(
+        uid,
+        name: name,
+        mobile: mobile,
+        age: age,
+        sex: sex,
+      );
       emit(state.copyWith(message: 'Profile updated successfully ✅'));
       await load();
     } on AppException catch (e) {
@@ -142,21 +160,33 @@ class ProfileCubit extends Cubit<ProfileState> {
     }
   }
 
-  Future<void> changePassword({
+  Future<bool> changePassword({
     String? oldPassword,
     required String newPassword,
   }) async {
     final uid = _resolveUserId();
-    if (uid <= 0) return;
+    if (uid <= 0) {
+      emit(state.copyWith(error: 'Session expired. Please login again.'));
+      return false;
+    }
+    emit(state.copyWith());
     try {
-      await _repo.changePassword(uid, oldPassword: oldPassword, newPassword: newPassword);
+      await _repo.changePassword(
+        uid,
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+      );
+      if (isClosed) return true;
       emit(state.copyWith(message: 'Password updated successfully ✅'));
-      await load();
+      return true;
     } on AppException catch (e) {
+      if (isClosed) return false;
       emit(state.copyWith(error: e.message));
     } catch (e) {
+      if (isClosed) return false;
       emit(state.copyWith(error: 'Password update failed: $e'));
     }
+    return false;
   }
 
   Future<void> uploadPicture(XFile file) async {
@@ -177,7 +207,11 @@ class ProfileCubit extends Cubit<ProfileState> {
     final uid = _resolveUserId();
     if (uid <= 0) return;
     try {
-      await _repo.addTeamMember(uid, memberEmail: email, sharedCredits: sharedCredits);
+      await _repo.addTeamMember(
+        uid,
+        memberEmail: email,
+        sharedCredits: sharedCredits,
+      );
       emit(state.copyWith(message: 'Team member added ✅'));
       await load();
     } on AppException catch (e) {
@@ -203,12 +237,14 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   // --- Asset Operations ---
   Future<void> selectFarm(Farm farm) async {
-    emit(state.copyWith(
-      selectedFarm: farm,
-      clearSelectedCrop: true,
-      crops: const [],
-      trees: const [],
-    ));
+    emit(
+      state.copyWith(
+        selectedFarm: farm,
+        clearSelectedCrop: true,
+        crops: const [],
+        trees: const [],
+      ),
+    );
     try {
       final crops = await _repo.getCrops(farm.id);
       emit(state.copyWith(crops: crops));
@@ -218,10 +254,7 @@ class ProfileCubit extends Cubit<ProfileState> {
   }
 
   Future<void> selectCrop(Crop crop) async {
-    emit(state.copyWith(
-      selectedCrop: crop,
-      trees: const [],
-    ));
+    emit(state.copyWith(selectedCrop: crop, trees: const []));
     try {
       final trees = await _repo.getTrees(crop.id);
       emit(state.copyWith(trees: trees));

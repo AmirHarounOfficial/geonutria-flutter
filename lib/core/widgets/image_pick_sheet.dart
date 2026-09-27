@@ -14,17 +14,17 @@ Future<XFile?> pickImage(BuildContext context) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('Camera'),
+            leading: Icon(Icons.photo_camera_outlined),
+            title: Text(context.ui('Camera')),
             onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
           ),
           ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Gallery'),
+            leading: Icon(Icons.photo_library_outlined),
+            title: Text(context.ui('Gallery')),
             onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
           ),
           ListTile(
-            leading: const Icon(Icons.close),
+            leading: Icon(Icons.close),
             title: Text(ctx.tr('cancel')),
             onTap: () => Navigator.of(ctx).pop(),
           ),

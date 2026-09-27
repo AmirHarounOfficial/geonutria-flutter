@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/localized_number.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -119,7 +120,7 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
       setState(() => _thresholdError = 'Enter a numeric threshold');
       return;
     }
-    final val = double.tryParse(raw);
+    final val = parseLocalizedDouble(raw);
     if (val == null) {
       setState(() => _thresholdError = 'Invalid number format');
       return;
@@ -138,9 +139,11 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
       setState(() => _durationError = null);
       return;
     }
-    final val = int.tryParse(raw);
+    final val = parseLocalizedInt(raw);
     if (val == null || val < 1 || val > 1440) {
-      setState(() => _durationError = 'Enter a duration between 1 and 1440 minutes');
+      setState(
+        () => _durationError = 'Enter a duration between 1 and 1440 minutes',
+      );
       return;
     }
     setState(() => _durationError = null);
@@ -164,7 +167,7 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
 
     double? threshold;
     if (_trigger == TriggerType.threshold) {
-      threshold = double.tryParse(_threshold.text.trim());
+      threshold = parseLocalizedDouble(_threshold.text.trim());
       if (threshold == null) {
         _snack('Enter a numeric threshold.');
         return;
@@ -175,7 +178,7 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
       }
     }
 
-    final duration = int.tryParse(_duration.text.trim());
+    final duration = parseLocalizedInt(_duration.text.trim());
     if (_duration.text.trim().isNotEmpty && duration == null) {
       _snack('Duration must be a whole number of minutes.');
       return;
@@ -247,36 +250,36 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
                       : context.tr('edit_rule'),
                   style: theme.textTheme.titleLarge,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 TextField(
                   controller: _name,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Rule name',
-                    hintText: 'Morning irrigation',
+                  decoration: InputDecoration(
+                    labelText: context.ui('Rule name'),
+                    hintText: context.ui('Morning irrigation'),
                   ),
                 ),
 
                 // ── When ────────────────────────────────────────────────
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 _Label(context.tr('when')),
                 SegmentedButton<TriggerType>(
                   segments: [
                     ButtonSegment(
                       value: TriggerType.cron,
                       label: Text(context.tr('at_a_time')),
-                      icon: const Icon(Icons.access_time),
+                      icon: Icon(Icons.access_time),
                     ),
                     ButtonSegment(
                       value: TriggerType.threshold,
                       label: Text(context.tr('sensor_level')),
-                      icon: const Icon(Icons.sensors),
+                      icon: Icon(Icons.sensors),
                     ),
                   ],
                   selected: {_trigger},
                   onSelectionChanged: (s) => setState(() => _trigger = s.first),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
 
                 if (_trigger == TriggerType.cron)
                   _TimeFields(
@@ -311,19 +314,22 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
                   ),
 
                 // ── Then ────────────────────────────────────────────────
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 _Label(context.tr('then')),
                 if (actuators.isEmpty)
                   Text(
-                    'No controllable devices on this account yet. An '
-                    'administrator adds them.',
+                    context.ui(
+                      'No controllable devices on this account yet. An administrator adds them.',
+                    ),
                     style: theme.textTheme.bodySmall,
                   )
                 else ...[
                   DropdownButtonFormField<int>(
                     initialValue: _actuatorId,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Device'),
+                    decoration: InputDecoration(
+                      labelText: context.ui('Device'),
+                    ),
                     items: [
                       for (final a in actuators)
                         DropdownMenuItem(
@@ -333,17 +339,17 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
                     ],
                     onChanged: (v) => setState(() => _actuatorId = v),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   SegmentedButton<String>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: 'on',
-                        label: Text('Turn on'),
+                        label: Text(context.ui('Turn on')),
                         icon: Icon(Icons.toggle_on),
                       ),
                       ButtonSegment(
                         value: 'off',
-                        label: Text('Turn off'),
+                        label: Text(context.ui('Turn off')),
                         icon: Icon(Icons.toggle_off_outlined),
                       ),
                     ],
@@ -352,13 +358,13 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
                         setState(() => _action = s.first),
                   ),
                   if (_action == 'on') ...[
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     TextField(
                       controller: _duration,
                       keyboardType: TextInputType.number,
                       onChanged: _validateDuration,
                       decoration: InputDecoration(
-                        labelText: 'Run for (minutes, optional)',
+                        labelText: context.ui('Run for (minutes, optional)'),
                         helperText: 'Leave blank to leave it on',
                         errorText: _durationError,
                       ),
@@ -366,18 +372,18 @@ class _ScheduleEditorSheetState extends State<ScheduleEditorSheet> {
                   ],
                 ],
 
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 FilledButton(
                   onPressed: _busy || actuators.isEmpty ? null : _save,
                   child: _busy
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Text(context.tr('save')),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   context.tr('automation_server_time_note'),
                   textAlign: TextAlign.center,
@@ -400,7 +406,7 @@ class _Label extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
+    padding: EdgeInsets.only(bottom: 8),
     child: Text(
       text.toUpperCase(),
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -435,21 +441,21 @@ class _TimeFields extends StatelessWidget {
       children: [
         OutlinedButton.icon(
           onPressed: onPickTime,
-          icon: const Icon(Icons.schedule),
-          label: Text('At $label'),
+          icon: Icon(Icons.schedule),
+          label: Text('${context.ui('at')} $label'),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Text(
           days.isEmpty ? 'Every day' : 'On selected days',
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Wrap(
           spacing: 6,
           children: [
             for (final d in kScheduleDays)
               FilterChip(
-                label: Text(d),
+                label: Text(context.ui(d)),
                 selected: days.contains(d),
                 onSelected: (_) => onToggleDay(d),
               ),
@@ -499,29 +505,46 @@ class _ThresholdFields extends StatelessWidget {
       children: [
         if (sources.isEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: Text(
-              'No sensor devices available to read from.',
+              context.ui('No sensor devices available to read from.'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           )
         else ...[
-          DropdownButtonFormField<int>(
-            initialValue: sourceDeviceId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Read sensor from'),
-            items: [
-              for (final d in sources)
-                DropdownMenuItem(value: d.id, child: Text(d.name)),
-            ],
-            onChanged: onSource,
+          Builder(
+            builder: (context) {
+              final uniqueSources = <int, SensorDevice>{};
+              for (final s in sources) {
+                uniqueSources[s.id] = s;
+              }
+              final sourceList = uniqueSources.values.toList();
+              final selectedSource =
+                  (sourceDeviceId != null &&
+                      uniqueSources.containsKey(sourceDeviceId))
+                  ? sourceDeviceId
+                  : (sourceList.isNotEmpty ? sourceList.first.id : null);
+
+              return DropdownButtonFormField<int>(
+                value: selectedSource,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: context.ui('Read sensor from'),
+                ),
+                items: [
+                  for (final d in sourceList)
+                    DropdownMenuItem(value: d.id, child: Text(d.name)),
+                ],
+                onChanged: onSource,
+              );
+            },
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
         ],
         DropdownButtonFormField<String>(
           initialValue: metrics.contains(sensor) ? sensor : metrics.first,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Sensor'),
+          decoration: InputDecoration(labelText: context.ui('Sensor')),
           items: [
             for (final m in metrics)
               DropdownMenuItem(
@@ -536,7 +559,7 @@ class _ThresholdFields extends StatelessWidget {
             if (v != null) onSensor(v);
           },
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -544,31 +567,46 @@ class _ThresholdFields extends StatelessWidget {
               flex: 3,
               child: DropdownButtonFormField<String>(
                 initialValue: operator,
-                decoration: const InputDecoration(labelText: 'Is'),
-                items: const [
-                  DropdownMenuItem(value: '<', child: Text('below')),
-                  DropdownMenuItem(value: '<=', child: Text('at or below')),
-                  DropdownMenuItem(value: '>', child: Text('above')),
-                  DropdownMenuItem(value: '>=', child: Text('at or above')),
-                  DropdownMenuItem(value: '==', child: Text('exactly')),
+                decoration: InputDecoration(labelText: context.ui('Is')),
+                items: [
+                  DropdownMenuItem(
+                    value: '<',
+                    child: Text(context.ui('below')),
+                  ),
+                  DropdownMenuItem(
+                    value: '<=',
+                    child: Text(context.ui('at or below')),
+                  ),
+                  DropdownMenuItem(
+                    value: '>',
+                    child: Text(context.ui('above')),
+                  ),
+                  DropdownMenuItem(
+                    value: '>=',
+                    child: Text(context.ui('at or above')),
+                  ),
+                  DropdownMenuItem(
+                    value: '==',
+                    child: Text(context.ui('exactly')),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v != null) onOperator(v);
                 },
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             Expanded(
               flex: 2,
               child: TextField(
                 controller: controller,
                 onChanged: onChanged,
-                keyboardType: const TextInputType.numberWithOptions(
+                keyboardType: TextInputType.numberWithOptions(
                   decimal: true,
                   signed: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Value',
+                  labelText: context.ui('Value'),
                   isDense: true,
                   errorText: errorText,
                 ),
@@ -576,10 +614,11 @@ class _ThresholdFields extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Text(
-          'Checked as readings arrive, with a 10-minute cooldown between '
-          'firings so a fluctuating reading cannot retrigger it repeatedly.',
+          context.ui(
+            'Rules are checked as readings arrive, with a 10-minute cooldown.',
+          ),
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: Theme.of(context).colorScheme.outline,
           ),

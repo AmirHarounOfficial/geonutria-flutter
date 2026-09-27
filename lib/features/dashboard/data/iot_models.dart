@@ -21,9 +21,9 @@ class Device extends Equatable {
   bool get hasLocation => latitude != null && longitude != null;
 
   factory Device.fromJson(Map<String, dynamic> j) => Device(
-    id: (j['id'] as num).toInt(),
+    id: _toInt(j['id']) ?? 0,
     name: (j['device_name'] ?? j['name'] ?? 'Device ${j['id']}').toString(),
-    farmId: (j['farm_id'] as num?)?.toInt(),
+    farmId: _toInt(j['farm_id']),
     location: (j['installed_location'] ?? j['location'])?.toString(),
     latitude: _toD(j['latitude']),
     longitude: _toD(j['longitude']),
@@ -80,7 +80,7 @@ class IotStatus extends Equatable {
 
   factory IotStatus.fromJson(Map<String, dynamic> j) => IotStatus(
     mqttStatus: (j['mqtt_status'] ?? 'unknown').toString(),
-    sensors: _toDoubleMap(j['sensors']),
+    sensors: visibleSensors(_toDoubleMap(j['sensors'])),
     diagnosis: Diagnosis.fromJson(
       (j['ai_diagnosis'] as Map?)?.cast<String, dynamic>() ?? const {},
     ),
@@ -90,6 +90,30 @@ class IotStatus extends Equatable {
   @override
   List<Object?> get props => [mqttStatus, sensors, diagnosis];
 }
+
+/// Same installed-probe rules as the deployed dashboard. Zero NPK, soil
+/// moisture and soil temperature are valid measurements and stay visible.
+Map<String, double> visibleSensors(Map<String, double> values) => {
+  for (final entry in values.entries)
+    if (entry.value.isFinite &&
+        !{
+          'Light_Intensity',
+          'Chlorophyll_Content',
+          'Chlorophyll',
+        }.contains(entry.key) &&
+        !(entry.value == 0 &&
+            {
+              'Soil_pH',
+              'Electrochemical_Signal',
+              'Soil_Salinity',
+              'Salinity',
+              'TDS',
+              'Epsilon',
+              'Ambient_Temperature',
+              'Humidity',
+            }.contains(entry.key)))
+      entry.key: entry.value,
+};
 
 /// A single historical reading from `GET /iot-history/{id}`.
 class HistoryPoint extends Equatable {
@@ -178,6 +202,12 @@ class WeatherPoint extends Equatable {
 
   @override
   List<Object?> get props => [label, isForecast];
+}
+
+int? _toInt(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toInt();
+  return int.tryParse('$v');
 }
 
 double? _toD(dynamic v) {

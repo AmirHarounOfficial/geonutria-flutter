@@ -31,18 +31,24 @@ class YieldState extends Equatable {
     bool? isThinking,
     bool? streaming,
     String? error,
-  }) =>
-      YieldState(
-        state: state ?? this.state,
-        aiReport: aiReport ?? this.aiReport,
-        thinking: thinking ?? this.thinking,
-        isThinking: isThinking ?? this.isThinking,
-        streaming: streaming ?? this.streaming,
-        error: error,
-      );
+  }) => YieldState(
+    state: state ?? this.state,
+    aiReport: aiReport ?? this.aiReport,
+    thinking: thinking ?? this.thinking,
+    isThinking: isThinking ?? this.isThinking,
+    streaming: streaming ?? this.streaming,
+    error: error,
+  );
 
   @override
-  List<Object?> get props => [state, aiReport, thinking, isThinking, streaming, error];
+  List<Object?> get props => [
+    state,
+    aiReport,
+    thinking,
+    isThinking,
+    streaming,
+    error,
+  ];
 }
 
 class YieldCubit extends Cubit<YieldState> {
@@ -65,14 +71,16 @@ class YieldCubit extends Cubit<YieldState> {
   }) async {
     final uid = _auth.state.userId;
     if (uid == null) return;
-    emit(state.copyWith(
-      state: LoadState.loading,
-      streaming: true,
-      isThinking: true,
-      aiReport: '',
-      thinking: '',
-      error: null,
-    ));
+    emit(
+      state.copyWith(
+        state: LoadState.loading,
+        streaming: true,
+        isThinking: true,
+        aiReport: '',
+        thinking: '',
+        error: null,
+      ),
+    );
 
     final answer = StringBuffer();
     final thinkingBuf = StringBuffer();
@@ -94,20 +102,16 @@ class YieldCubit extends Cubit<YieldState> {
         if (context != null && !context.isEmpty) 'context': context.toJson(),
       };
 
-      final stream = _api.streamChatTokens(
-        '/predict-yield',
-        body: payload,
-      );
+      final stream = _api.streamChatTokens('/predict-yield', body: payload);
 
       await for (final token in stream) {
         if (isClosed) return;
 
         if (token.isReasoning) {
           thinkingBuf.write(token.text);
-          emit(state.copyWith(
-            thinking: thinkingBuf.toString(),
-            isThinking: true,
-          ));
+          emit(
+            state.copyWith(thinking: thinkingBuf.toString(), isThinking: true),
+          );
           continue;
         }
 
@@ -117,11 +121,13 @@ class YieldCubit extends Cubit<YieldState> {
           answer.write(parts.first);
           if (parts.length > 1) thinkingBuf.write(parts[1]);
           inThinkTag = true;
-          emit(state.copyWith(
-            aiReport: answer.toString(),
-            thinking: thinkingBuf.toString(),
-            isThinking: true,
-          ));
+          emit(
+            state.copyWith(
+              aiReport: answer.toString(),
+              thinking: thinkingBuf.toString(),
+              isThinking: true,
+            ),
+          );
           continue;
         }
         if (inThinkTag) {
@@ -130,48 +136,59 @@ class YieldCubit extends Cubit<YieldState> {
             thinkingBuf.write(parts.first);
             if (parts.length > 1) answer.write(parts[1]);
             inThinkTag = false;
-            emit(state.copyWith(
-              aiReport: answer.toString(),
-              thinking: thinkingBuf.toString(),
-              isThinking: false,
-            ));
+            emit(
+              state.copyWith(
+                aiReport: answer.toString(),
+                thinking: thinkingBuf.toString(),
+                isThinking: false,
+              ),
+            );
           } else {
             thinkingBuf.write(chunk);
-            emit(state.copyWith(
-              thinking: thinkingBuf.toString(),
-              isThinking: true,
-            ));
+            emit(
+              state.copyWith(
+                thinking: thinkingBuf.toString(),
+                isThinking: true,
+              ),
+            );
           }
           continue;
         }
 
         answer.write(chunk);
-        emit(state.copyWith(
-          aiReport: answer.toString(),
-          isThinking: false,
-        ));
+        emit(state.copyWith(aiReport: answer.toString(), isThinking: false));
       }
 
-      emit(state.copyWith(
-        state: LoadState.loaded,
-        streaming: false,
-        isThinking: false,
-      ));
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          state: LoadState.loaded,
+          streaming: false,
+          isThinking: false,
+        ),
+      );
       _auth.onCreditsSpent(5);
     } on InsufficientCreditsException {
+      if (isClosed) return;
       emit(state.copyWith(state: LoadState.initial, streaming: false));
     } on AppException catch (e) {
-      emit(state.copyWith(
-        state: LoadState.error,
-        streaming: false,
-        error: e.message,
-      ));
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          state: LoadState.error,
+          streaming: false,
+          error: e.message,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(
-        state: LoadState.error,
-        streaming: false,
-        error: 'Yield prediction request failed: $e',
-      ));
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          state: LoadState.error,
+          streaming: false,
+          error: 'Yield prediction request failed: $e',
+        ),
+      );
     }
   }
 
@@ -179,4 +196,3 @@ class YieldCubit extends Cubit<YieldState> {
     emit(const YieldState());
   }
 }
-

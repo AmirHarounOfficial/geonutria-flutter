@@ -23,6 +23,9 @@ import '../report/report_screen.dart';
 import '../satellite/satellite_screen.dart';
 import '../support/support_screen.dart';
 import '../yield_predict/yield_screen.dart';
+import '../admin/ui/admin_screen.dart';
+import '../control/ui/control_screen.dart';
+import '../leaf_doctor/leaf_doctor_screen.dart';
 import '../farm_context/farm_hierarchy_cubit.dart';
 import '../farm_context/global_context_bar.dart';
 
@@ -51,18 +54,32 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  final Set<int> _activatedIndices = {0};
   PaywallNotifier? _paywall;
   bool _paywallOpen = false;
+
+  late final DevicesCubit _devicesCubit;
+  late final ControlCubit _controlCubit;
+  late final FarmHierarchyCubit _farmHierarchyCubit;
 
   @override
   void initState() {
     super.initState();
+    final api = context.read<ApiClient>();
+    final auth = context.read<AuthCubit>();
+    _devicesCubit = DevicesCubit(DevicesRepository(api))..load();
+    _controlCubit = ControlCubit(ControlRepository(api))..load();
+    _farmHierarchyCubit = FarmHierarchyCubit(api, auth)..loadHierarchy();
+
     _paywall = context.read<PaywallNotifier>()..addListener(_onPaywall);
   }
 
   @override
   void dispose() {
     _paywall?.removeListener(_onPaywall);
+    _devicesCubit.close();
+    _controlCubit.close();
+    _farmHierarchyCubit.close();
     super.dispose();
   }
 
@@ -72,9 +89,13 @@ class _HomeShellState extends State<HomeShell> {
     PaywallPopup.show(
       context,
       onTopUp: () {
-        final billing = _features.indexWhere(
-          (f) => f.titleKey == 'nav_billing',
-        );
+        final authState = context.read<AuthCubit>().state;
+        final isAdmin =
+            authState.isAdmin ||
+            authState.role?.toLowerCase() == 'admin' ||
+            authState.userId == 1;
+        final features = _featuresFor(isAdmin);
+        final billing = features.indexWhere((f) => f.titleKey == 'nav_billing');
         if (billing >= 0) _select(billing);
       },
     ).whenComplete(() {
@@ -86,93 +107,112 @@ class _HomeShellState extends State<HomeShell> {
 
   // Feature registry. Screens are swapped from PlaceholderScreen to the real
   // implementation as each phase lands.
-  late final List<_Feature> _features = [
+  List<_Feature> _featuresFor(bool isAdmin) => [
     _Feature(
       'nav_dashboard',
       Icons.dashboard_outlined,
-      (c) => DashboardScreen(),
+      (c) => const DashboardScreen(),
       primary: true,
     ),
     _Feature(
-      'nav_my_devices',
-      Icons.router_outlined,
-      (c) => MyDevicesScreen(),
+      'nav_control',
+      Icons.bolt_outlined,
+      (c) => const ControlScreen(),
+      primary: true,
+    ),
+    _Feature(
+      'nav_leaf_doctor',
+      Icons.local_florist_outlined,
+      (c) => const LeafDoctorScreen(),
       primary: true,
     ),
     _Feature(
       'nav_advanced_ai',
       Icons.auto_awesome_outlined,
-      (c) => AdvancedAiScreen(),
+      (c) => const AdvancedAiScreen(),
       primary: true,
     ),
-
     _Feature(
-      'nav_satellite',
-      Icons.satellite_alt_outlined,
-      (c) => SatelliteScreen(),
+      'nav_my_devices',
+      Icons.router_outlined,
+      (c) => const MyDevicesScreen(),
     ),
     _Feature(
       'nav_crop_advisor',
       Icons.grass_outlined,
-      (c) => CropAdvisorScreen(),
+      (c) => const CropAdvisorScreen(),
     ),
-    _Feature('nav_yield', Icons.analytics_outlined, (c) => YieldScreen()),
+    _Feature('nav_yield', Icons.analytics_outlined, (c) => const YieldScreen()),
+    _Feature(
+      'nav_satellite',
+      Icons.satellite_alt_outlined,
+      (c) => const SatelliteScreen(),
+    ),
     _Feature(
       'nav_accounting',
       Icons.account_balance_wallet_outlined,
-      (c) => AccountingScreen(),
+      (c) => const AccountingScreen(),
     ),
-    _Feature('nav_profile', Icons.person_outline, (c) => ProfileScreen()),
+    _Feature('nav_profile', Icons.person_outline, (c) => const ProfileScreen()),
     _Feature(
       'nav_billing',
       Icons.credit_card_outlined,
-      (c) => BillingScreen(),
+      (c) => const BillingScreen(),
     ),
     _Feature(
       'nav_report',
       Icons.picture_as_pdf_outlined,
-      (c) => ReportScreen(),
+      (c) => const ReportScreen(),
     ),
     _Feature(
       'nav_support',
       Icons.support_agent_outlined,
-      (c) => SupportScreen(),
+      (c) => const SupportScreen(),
     ),
-  ];
-
-  List<int> get _primaryIndexes => [
-    for (var i = 0; i < _features.length; i++)
-      if (_features[i].primary) i,
+    if (isAdmin)
+      _Feature(
+        'nav_admin',
+        Icons.admin_panel_settings_outlined,
+        (c) => const AdminScreen(),
+      ),
   ];
 
   void _select(int featureIndex) {
-    setState(() => _index = featureIndex);
+    setState(() {
+      _index = featureIndex;
+      _activatedIndices.add(featureIndex);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final feature = _features[_index];
-    final primaryIdx = _primaryIndexes;
+    final isAdmin = context.select<AuthCubit, bool>(
+      (c) =>
+          c.state.isAdmin ||
+          c.state.role?.toLowerCase() == 'admin' ||
+          c.state.userId == 1,
+    );
+    final features = _featuresFor(isAdmin);
+    if (_index >= features.length) {
+      _index = 0;
+    }
+    if (!_activatedIndices.contains(_index)) {
+      _activatedIndices.add(_index);
+    }
+    final feature = features[_index];
+    final primaryIdx = [
+      for (var i = 0; i < features.length; i++)
+        if (features[i].primary) i,
+    ];
     final selectedBottom = primaryIdx.indexOf(_index);
 
     // Devices are provided shell-wide (not inside My Devices) so the dashboard
     // can surface the user's controls without a second fetch.
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (ctx) =>
-              DevicesCubit(DevicesRepository(ctx.read<ApiClient>()))..load(),
-        ),
-        BlocProvider(
-          create: (ctx) =>
-              ControlCubit(ControlRepository(ctx.read<ApiClient>()))..load(),
-        ),
-        BlocProvider(
-          create: (ctx) => FarmHierarchyCubit(
-            ctx.read<ApiClient>(),
-            ctx.read<AuthCubit>(),
-          )..loadHierarchy(),
-        ),
+        BlocProvider.value(value: _devicesCubit),
+        BlocProvider.value(value: _controlCubit),
+        BlocProvider.value(value: _farmHierarchyCubit),
       ],
       child: Scaffold(
         appBar: AppBar(
@@ -180,7 +220,7 @@ class _HomeShellState extends State<HomeShell> {
           actions: const [_CreditsBadge(), SizedBox(width: 8)],
         ),
         drawer: _AppDrawer(
-          features: _features,
+          features: features,
           selected: _index,
           onSelect: (i) {
             Navigator.of(context).pop();
@@ -189,14 +229,22 @@ class _HomeShellState extends State<HomeShell> {
         ),
         body: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: GlobalContextBar(),
-            ),
+            if (feature.titleKey == 'nav_dashboard' ||
+                feature.titleKey == 'nav_crop_advisor' ||
+                feature.titleKey == 'nav_yield')
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: GlobalContextBar(),
+              ),
             Expanded(
               child: IndexedStack(
                 index: _index,
-                children: [for (final f in _features) Builder(builder: f.builder)],
+                children: [
+                  for (var i = 0; i < features.length; i++)
+                    _activatedIndices.contains(i)
+                        ? Builder(builder: features[i].builder)
+                        : const SizedBox.shrink(),
+                ],
               ),
             ),
           ],
@@ -207,8 +255,8 @@ class _HomeShellState extends State<HomeShell> {
           destinations: [
             for (final i in primaryIdx)
               NavigationDestination(
-                icon: Icon(_features[i].icon),
-                label: context.tr(_features[i].titleKey),
+                icon: Icon(features[i].icon),
+                label: context.tr(features[i].titleKey),
               ),
           ],
         ),
@@ -223,16 +271,39 @@ class _CreditsBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
-      buildWhen: (a, b) => a.aiCredits != b.aiCredits,
+      buildWhen: (a, b) =>
+          a.aiCredits != b.aiCredits || a.teamCredits != b.teamCredits,
       builder: (ctx, state) {
         return Center(
-          child: Padding(
-            padding: const EdgeInsetsDirectional.only(end: 4),
-            child: ActionChip(
-              avatar: const Icon(Icons.bolt, size: 18),
-              label: Text('${state.aiCredits}'),
-              onPressed: () => ctx.read<AuthCubit>().refreshCredits(),
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (state.teamCredits > 0)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 4),
+                  child: ActionChip(
+                    avatar: const Icon(
+                      Icons.people,
+                      size: 16,
+                      color: Colors.indigo,
+                    ),
+                    label: Text('${state.teamCredits}'),
+                    onPressed: () => ctx.read<AuthCubit>().refreshCredits(),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 4),
+                child: ActionChip(
+                  avatar: const Icon(
+                    Icons.bolt,
+                    size: 18,
+                    color: Color(0xFFC47A2C),
+                  ),
+                  label: Text('${state.aiCredits}'),
+                  onPressed: () => ctx.read<AuthCubit>().refreshCredits(),
+                ),
+              ),
+            ],
           ),
         );
       },

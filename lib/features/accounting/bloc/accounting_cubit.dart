@@ -146,6 +146,55 @@ class AccountingState extends Equatable {
 /// tree is edited field by field, and waiting for a round trip on each one
 /// makes it feel broken.
 class AccountingCubit extends Cubit<AccountingState> {
+  @override
+  void onChange(Change<AccountingState> change) {
+    super.onChange(change);
+    final next = change.nextState;
+    if (next.status != AccountingStatus.loaded || next.busy) return;
+    List<Map<String, dynamic>> breakdown(
+      List<AccountingNode> roots,
+      double total,
+    ) => [
+      for (final n in roots)
+        {
+          'name_en': n.displayName('en'),
+          'name_ar': n.displayName('ar'),
+          'amount': next.totals[n.id] ?? 0,
+          'share_pct': total > 0 ? (next.totals[n.id] ?? 0) / total * 100 : 0,
+        },
+    ];
+    _repo.recordReport({
+      'accounting_summary': {
+        'fiscal_year': next.year,
+        'currency': 'EGP',
+        'total_revenue': next.totalRevenue,
+        'total_expenses': next.totalExpenses,
+        'net_profit': next.netProfit,
+        'profit_margin': next.totalRevenue > 0
+            ? next.netProfit / next.totalRevenue * 100
+            : 0,
+        'expense_ratio': next.totalRevenue > 0
+            ? next.totalExpenses / next.totalRevenue * 100
+            : 0,
+        'revenue_item_count': next.nodes.where((n) => n.isRevenue).length,
+        'expense_item_count': next.nodes.where((n) => !n.isRevenue).length,
+        'verdict': next.netProfit > 0
+            ? 'profit'
+            : next.netProfit < 0
+            ? 'loss'
+            : 'breakeven',
+      },
+      'accounting_revenue_breakdown': breakdown(
+        next.revenueRoots,
+        next.totalRevenue,
+      ),
+      'accounting_expense_breakdown': breakdown(
+        next.expenseRoots,
+        next.totalExpenses,
+      ),
+    });
+  }
+
   AccountingCubit(this._repo, {required int year})
     : super(AccountingState(year: year));
 

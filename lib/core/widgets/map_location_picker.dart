@@ -10,7 +10,7 @@ import 'app_map.dart';
 /// map to pick a location (tap or "use my location"). Mirrors the web
 /// `MapLocationPicker`.
 class MapLocationPicker extends StatelessWidget {
-  const MapLocationPicker({
+  MapLocationPicker({
     super.key,
     required this.latitude,
     required this.longitude,
@@ -34,7 +34,7 @@ class MapLocationPicker extends StatelessWidget {
             builder: (_) => _PickerScreen(
               initial: hasValue
                   ? LatLng(latitude!, longitude!)
-                  : const LatLng(26.8206, 30.8025), // Egypt centroid default
+                  : LatLng(26.8206, 30.8025), // Egypt centroid default
             ),
           ),
         );
@@ -43,7 +43,7 @@ class MapLocationPicker extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label ?? 'Location',
-          prefixIcon: const Icon(Icons.map_outlined),
+          prefixIcon: Icon(Icons.map_outlined),
         ),
         child: Text(
           hasValue
@@ -95,10 +95,10 @@ class _PickerScreenState extends State<_PickerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pick location'),
+        title: Text(context.ui('Pick location')),
         actions: [
           IconButton(
-            tooltip: 'Toggle satellite',
+            tooltip: context.ui('Toggle satellite'),
             icon: Icon(_satellite ? Icons.map : Icons.satellite_alt),
             onPressed: () => setState(() => _satellite = !_satellite),
           ),
@@ -120,17 +120,18 @@ class _PickerScreenState extends State<_PickerScreen> {
             heroTag: 'loc',
             onPressed: _locating ? null : _useMyLocation,
             child: _locating
-                ? const SizedBox(
+                ? SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.my_location),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(Icons.my_location),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           FloatingActionButton.extended(
             heroTag: 'done',
             onPressed: () => Navigator.of(context).pop(_selected),
-            icon: const Icon(Icons.check),
+            icon: Icon(Icons.check),
             label: Text(context.tr('confirm')),
           ),
         ],

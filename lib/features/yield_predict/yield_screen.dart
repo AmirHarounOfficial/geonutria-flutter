@@ -1,8 +1,11 @@
+import 'package:geonutria_mobile/core/localization/localized_number.dart';
+import 'package:geonutria_mobile/core/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../core/network/api_client.dart';
+import '../farm_context/farm_hierarchy_cubit.dart';
 import '../auth/bloc/auth_cubit.dart';
 import '../dashboard/bloc/history_cubit.dart' show LoadState;
 import '../deep_analysis/data/analysis_context.dart';
@@ -15,10 +18,8 @@ class YieldScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (ctx) => YieldCubit(
-        ctx.read<ApiClient>(),
-        ctx.read<AuthCubit>(),
-      ),
+      key: ValueKey(context.locale.languageCode),
+      create: (ctx) => YieldCubit(ctx.read<ApiClient>(), ctx.read<AuthCubit>()),
       child: const _YieldView(),
     );
   }
@@ -31,7 +32,16 @@ class _YieldView extends StatefulWidget {
 }
 
 class _YieldViewState extends State<_YieldView> {
-  static const _crops = ['Rice', 'Maize', 'Chickpea', 'Cotton', 'Wheat', 'Sugarcane', 'Tomatoes', 'Potatoes'];
+  static const _crops = [
+    'Rice',
+    'Maize',
+    'Chickpea',
+    'Cotton',
+    'Wheat',
+    'Sugarcane',
+    'Tomatoes',
+    'Potatoes',
+  ];
   String _crop = 'Rice';
   bool _thinkingExpanded = true;
 
@@ -46,7 +56,7 @@ class _YieldViewState extends State<_YieldView> {
   };
 
   final Map<String, String?> _errors = {};
-  AnalysisContext _farmContext = const AnalysisContext();
+  AnalysisContext _farmContext = AnalysisContext();
 
   static const _labels = {
     'n': 'Nitrogen (N)',
@@ -62,6 +72,7 @@ class _YieldViewState extends State<_YieldView> {
   void initState() {
     super.initState();
     _loadFarmContext();
+    AnalysisContextStore.changes.addListener(_loadFarmContext);
   }
 
   Future<void> _loadFarmContext() async {
@@ -99,28 +110,43 @@ class _YieldViewState extends State<_YieldView> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Edit Farm Context', style: Theme.of(bctx).textTheme.titleMedium),
-            const SizedBox(height: 12),
+            Text(
+              context.ui('Edit Farm Context'),
+              style: Theme.of(bctx).textTheme.titleMedium,
+            ),
+            SizedBox(height: 12),
             TextField(
               controller: cropCtl,
-              decoration: const InputDecoration(labelText: 'Crop Type', prefixIcon: Icon(Icons.grass)),
+              decoration: InputDecoration(
+                labelText: context.ui('Crop Type'),
+                prefixIcon: Icon(Icons.grass),
+              ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             TextField(
               controller: soilCtl,
-              decoration: const InputDecoration(labelText: 'Soil Type', prefixIcon: Icon(Icons.terrain)),
+              decoration: InputDecoration(
+                labelText: context.ui('Soil Type'),
+                prefixIcon: Icon(Icons.terrain),
+              ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             TextField(
               controller: locCtl,
-              decoration: const InputDecoration(labelText: 'Location / Region', prefixIcon: Icon(Icons.place)),
+              decoration: InputDecoration(
+                labelText: context.ui('Location / Region'),
+                prefixIcon: Icon(Icons.place),
+              ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             TextField(
               controller: irriCtl,
-              decoration: const InputDecoration(labelText: 'Irrigation Type', prefixIcon: Icon(Icons.water_drop)),
+              decoration: InputDecoration(
+                labelText: context.ui('Irrigation Type'),
+                prefixIcon: Icon(Icons.water_drop),
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             FilledButton(
               onPressed: () async {
                 final updated = _farmContext.copyWith(
@@ -133,7 +159,7 @@ class _YieldViewState extends State<_YieldView> {
                 if (bctx.mounted) Navigator.of(bctx).pop();
                 if (mounted) _loadFarmContext();
               },
-              child: const Text('Save Context'),
+              child: Text(context.ui('Save Context')),
             ),
           ],
         ),
@@ -144,24 +170,45 @@ class _YieldViewState extends State<_YieldView> {
   Future<void> _syncIoTData() async {
     final api = context.read<ApiClient>();
     try {
-      final devices = await api.get('/my-devices', query: api.authQuery());
-      if (devices is List && devices.isNotEmpty) {
-        final devId = devices.first['id'];
-        final hist = await api.get('/iot-history/$devId', query: {'limit': 1});
-        if (hist is Map && hist['status'] == 'success' && hist['data'] is List && (hist['data'] as List).isNotEmpty) {
+      final farmId = context.read<FarmHierarchyCubit>().state.selectedFarmId;
+      final allDevices = await api.get('/devices', query: api.authQuery());
+      final devices = allDevices is List
+          ? allDevices
+                .where((d) => farmId == null || d['farm_id'] == farmId)
+                .toList()
+          : [];
+      if (devices.isNotEmpty) {
+        final selected = devices.where(
+          (d) => d['id'] == api.reports.selectedDeviceId,
+        );
+        final devId = (selected.isEmpty ? devices.first : selected.first)['id'];
+        final hist = await api.get(
+          '/iot-history/$devId',
+          query: api.authQuery({'limit': 1}),
+        );
+        if (hist is Map &&
+            hist['status'] == 'success' &&
+            hist['data'] is List &&
+            (hist['data'] as List).isNotEmpty) {
           final reading = (hist['data'] as List).first as Map;
+          if (!mounted) return;
           setState(() {
-            _ctl['n']!.text = (reading['nitrogen'] ?? 80).toString();
-            _ctl['p']!.text = (reading['phosphorus'] ?? 40).toString();
-            _ctl['k']!.text = (reading['potassium'] ?? 40).toString();
-            _ctl['temperature']!.text = (reading['temperature'] ?? 28).toString();
-            _ctl['humidity']!.text = (reading['humidity'] ?? 60).toString();
-            _ctl['ph']!.text = (reading['ph'] ?? 6.5).toString();
+            _ctl['n']!.text = reading['nitrogen']?.toString() ?? '';
+            _ctl['p']!.text = reading['phosphorus']?.toString() ?? '';
+            _ctl['k']!.text = reading['potassium']?.toString() ?? '';
+            _ctl['temperature']!.text =
+                reading['temperature']?.toString() ?? '';
+            _ctl['humidity']!.text = reading['humidity']?.toString() ?? '';
+            _ctl['ph']!.text = reading['ph']?.toString() ?? '';
             _errors.clear();
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('IoT sensor telemetry synced successfully!')),
+              SnackBar(
+                content: Text(
+                  context.ui('IoT sensor telemetry synced successfully!'),
+                ),
+              ),
             );
           }
           return;
@@ -169,20 +216,25 @@ class _YieldViewState extends State<_YieldView> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No live IoT sensor data found for bound devices.')),
+          SnackBar(
+            content: Text(
+              context.ui('No live IoT sensor data found for bound devices.'),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('IoT Sync: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.errorText('$e'))));
       }
     }
   }
 
   @override
   void dispose() {
+    AnalysisContextStore.changes.removeListener(_loadFarmContext);
     for (final c in _ctl.values) {
       c.dispose();
     }
@@ -214,14 +266,14 @@ class _YieldViewState extends State<_YieldView> {
       setState(() => _errors[key] = 'Required field');
       return;
     }
-    final val = double.tryParse(raw);
+    final val = parseLocalizedDouble(raw);
     if (val == null) {
       setState(() => _errors[key] = 'Enter a valid number');
       return;
     }
-    final (min, max, label) = _getFieldBounds(key);
+    final (min, max, _) = _getFieldBounds(key);
     if (val < min || val > max) {
-      setState(() => _errors[key] = 'Range: $label');
+      setState(() => _errors[key] = '${context.ui('Range')}: $min–$max');
       return;
     }
     setState(() => _errors.remove(key));
@@ -234,30 +286,33 @@ class _YieldViewState extends State<_YieldView> {
     return _errors.isEmpty;
   }
 
-  int _i(String k) => int.tryParse(_ctl[k]!.text) ?? 0;
-  double _d(String k) => double.tryParse(_ctl[k]!.text) ?? 0;
+  int _i(String k) => parseLocalizedInt(_ctl[k]!.text) ?? 0;
+  double _d(String k) => parseLocalizedDouble(_ctl[k]!.text) ?? 0;
 
   void _predict() {
     if (!_validateAll()) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-            const SnackBar(content: Text('Please correct invalid input values.')));
+          SnackBar(
+            content: Text(context.ui('Please correct invalid input values.')),
+          ),
+        );
       return;
     }
     final lang = Localizations.localeOf(context).languageCode;
     context.read<YieldCubit>().predict(
-          crop: _crop,
-          n: _i('n'),
-          p: _i('p'),
-          k: _i('k'),
-          temperature: _i('temperature'),
-          humidity: _i('humidity'),
-          ph: _d('ph'),
-          rainfall: _i('rainfall'),
-          lang: lang,
-          context: _farmContext,
-        );
+      crop: _crop,
+      n: _i('n'),
+      p: _i('p'),
+      k: _i('k'),
+      temperature: _i('temperature'),
+      humidity: _i('humidity'),
+      ph: _d('ph'),
+      rainfall: _i('rainfall'),
+      lang: lang,
+      context: _farmContext,
+    );
   }
 
   @override
@@ -271,7 +326,9 @@ class _YieldViewState extends State<_YieldView> {
         if (state.error != null) {
           ScaffoldMessenger.of(ctx)
             ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(state.error!)));
+            ..showSnackBar(
+              SnackBar(content: Text(context.errorText(state.error!))),
+            );
         }
       },
       child: BlocBuilder<YieldCubit, YieldState>(
@@ -279,7 +336,7 @@ class _YieldViewState extends State<_YieldView> {
           final busy = state.streaming || state.state == LoadState.loading;
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             children: [
               // Header Title
               Row(
@@ -291,21 +348,30 @@ class _YieldViewState extends State<_YieldView> {
                       color: Colors.amber.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.trending_up, color: Colors.amber, size: 26),
+                    child: Icon(
+                      Icons.trending_up,
+                      color: Colors.amber,
+                      size: 26,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Yield Prediction Model',
-                          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          context.ui('Yield Prediction Model'),
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
-                          'Estimate total crop harvest volume utilizing environmental ML analytics.',
+                          context.ui(
+                            'Estimate total crop harvest volume utilizing environmental ML analytics.',
+                          ),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                            color: theme.textTheme.bodySmall?.color
+                                ?.withOpacity(0.7),
                           ),
                         ),
                       ],
@@ -313,7 +379,7 @@ class _YieldViewState extends State<_YieldView> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // Farm Context Card
               Card(
@@ -321,65 +387,74 @@ class _YieldViewState extends State<_YieldView> {
                 color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5)),
+                  side: BorderSide(
+                    color: colorScheme.outlineVariant.withOpacity(0.5),
+                  ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.tune, size: 18),
-                          const SizedBox(width: 8),
-                          Text('Global Farm Context',
-                              style: theme.textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold)),
-                          const Spacer(),
+                          Icon(Icons.tune, size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              context.ui('Global Farm Context'),
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                           TextButton.icon(
                             onPressed: () => _editFarmContext(context),
-                            icon: const Icon(Icons.edit, size: 14),
-                            label: const Text('Edit Context', style: TextStyle(fontSize: 12)),
+                            icon: Icon(Icons.edit, size: 14),
+                            label: Text(
+                              context.ui('Edit Context'),
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
                         children: [
                           Chip(
                             visualDensity: VisualDensity.compact,
-                            avatar: const Icon(Icons.grass, size: 12),
+                            avatar: Icon(Icons.grass, size: 12),
                             label: Text(
-                              'Crop: ${_farmContext.cropType.isNotEmpty ? _farmContext.cropType : "Unspecified"}',
-                              style: const TextStyle(fontSize: 11),
+                              '${context.ui('Crop')}: ${_farmContext.cropType.isNotEmpty ? context.ui(_farmContext.cropType) : context.ui('Unspecified')}',
+                              style: TextStyle(fontSize: 11),
                             ),
                           ),
                           Chip(
                             visualDensity: VisualDensity.compact,
-                            avatar: const Icon(Icons.terrain, size: 12),
+                            avatar: Icon(Icons.terrain, size: 12),
                             label: Text(
-                              'Soil: ${_farmContext.soilType.isNotEmpty ? _farmContext.soilType : "Unspecified"}',
-                              style: const TextStyle(fontSize: 11),
+                              '${context.ui('Soil')}: ${_farmContext.soilType.isNotEmpty ? context.ui(_farmContext.soilType) : context.ui('Unspecified')}',
+                              style: TextStyle(fontSize: 11),
                             ),
                           ),
                           if (_farmContext.location.isNotEmpty)
                             Chip(
                               visualDensity: VisualDensity.compact,
-                              avatar: const Icon(Icons.place, size: 12),
+                              avatar: Icon(Icons.place, size: 12),
                               label: Text(
-                                'Loc: ${_farmContext.location}',
-                                style: const TextStyle(fontSize: 11),
+                                '${context.ui('Location')}: ${_farmContext.location}',
+                                style: TextStyle(fontSize: 11),
                               ),
                             ),
                           if (_farmContext.irrigationType.isNotEmpty)
                             Chip(
                               visualDensity: VisualDensity.compact,
-                              avatar: const Icon(Icons.water_drop, size: 12),
+                              avatar: Icon(Icons.water_drop, size: 12),
                               label: Text(
-                                'Irri: ${_farmContext.irrigationType}',
-                                style: const TextStyle(fontSize: 11),
+                                '${context.ui('Irrigation')}: ${_farmContext.irrigationType}',
+                                style: TextStyle(fontSize: 11),
                               ),
                             ),
                         ],
@@ -388,22 +463,24 @@ class _YieldViewState extends State<_YieldView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // Crop Selection
               DropdownButtonFormField<String>(
                 value: _crops.contains(_crop) ? _crop : _crops.first,
-                decoration: const InputDecoration(
-                  labelText: 'Crop Selection',
+                decoration: InputDecoration(
+                  labelText: context.ui('Crop Selection'),
                   prefixIcon: Icon(Icons.grass),
                 ),
                 items: [
                   for (final c in _crops)
-                    DropdownMenuItem(value: c, child: Text(c)),
+                    DropdownMenuItem(value: c, child: Text(context.ui(c))),
                 ],
-                onChanged: busy ? null : (v) => setState(() => _crop = v ?? 'Rice'),
+                onChanged: busy
+                    ? null
+                    : (v) => setState(() => _crop = v ?? 'Rice'),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // Environmental Telemetry Section
               Card(
@@ -413,39 +490,53 @@ class _YieldViewState extends State<_YieldView> {
                   side: BorderSide(color: colorScheme.outlineVariant),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.sensors, color: colorScheme.primary, size: 20),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Soil & Environmental Telemetry',
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              Icon(
+                                Icons.sensors,
+                                color: colorScheme.primary,
+                                size: 20,
+                              ),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  context.ui('Soil & Environmental Telemetry'),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                           OutlinedButton.icon(
                             onPressed: busy ? null : _syncIoTData,
-                            icon: const Icon(Icons.sync, size: 14),
-                            label: const Text('Auto-fill IoT Data', style: TextStyle(fontSize: 12)),
+                            icon: Icon(Icons.sync, size: 14),
+                            label: Text(
+                              context.ui('Auto-fill IoT Data'),
+                              style: TextStyle(fontSize: 12),
+                            ),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               visualDensity: VisualDensity.compact,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14),
                       GridView.builder(
                         shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        physics: NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: 2.5,
                           crossAxisSpacing: 10,
@@ -457,12 +548,17 @@ class _YieldViewState extends State<_YieldView> {
                           return TextField(
                             controller: e.value,
                             enabled: !busy,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            keyboardType: TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             onChanged: (v) => _validateField(e.key, v),
                             decoration: InputDecoration(
-                              labelText: _labels[e.key],
+                              labelText: context.ui(_labels[e.key]!),
                               errorText: _errors[e.key],
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
                           );
                         },
@@ -471,18 +567,20 @@ class _YieldViewState extends State<_YieldView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // Calculate Prediction Button
               FilledButton.icon(
                 onPressed: busy ? null : _predict,
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.amber.shade800,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 icon: busy
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
@@ -490,18 +588,23 @@ class _YieldViewState extends State<_YieldView> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.analytics, size: 22),
+                    : Icon(Icons.analytics, size: 22),
                 label: Text(
-                  busy ? 'Computing Yield Prediction...' : 'Calculate Prediction  ·  5 ⚡',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  busy
+                      ? 'Computing Yield Prediction...'
+                      : 'Calculate Prediction  ·  5 ⚡',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // Diagnostics Panel & AI Yield Prediction Results
-              if (state.streaming || state.isThinking || state.thinking.isNotEmpty || state.aiReport.isNotEmpty) ...[
+              if (state.streaming ||
+                  state.isThinking ||
+                  state.thinking.isNotEmpty ||
+                  state.aiReport.isNotEmpty) ...[
                 _buildDiagnosticsHeader(context, state),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
 
                 // Thinking / Reasoning Accordion (<think>...) matching Web DiagnosticsPanel
                 if (state.isThinking || state.thinking.isNotEmpty) ...[
@@ -513,14 +616,23 @@ class _YieldViewState extends State<_YieldView> {
                       side: BorderSide(color: Colors.amber.withOpacity(0.3)),
                     ),
                     child: ExpansionTile(
-                      key: ValueKey('thinking-${state.isThinking}-${state.thinking.isNotEmpty}'),
+                      key: ValueKey(
+                        'thinking-${state.isThinking}-${state.thinking.isNotEmpty}',
+                      ),
                       initiallyExpanded: _thinkingExpanded,
-                      onExpansionChanged: (v) => setState(() => _thinkingExpanded = v),
-                      leading: Icon(Icons.auto_awesome, color: Colors.amber.shade800, size: 20),
+                      onExpansionChanged: (v) =>
+                          setState(() => _thinkingExpanded = v),
+                      leading: Icon(
+                        Icons.auto_awesome,
+                        color: Colors.amber.shade800,
+                        size: 20,
+                      ),
                       title: Row(
                         children: [
                           Text(
-                            state.isThinking ? 'Reasoning…' : 'Thinking Process',
+                            state.isThinking
+                                ? 'Reasoning…'
+                                : 'Thinking Process',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
@@ -528,8 +640,8 @@ class _YieldViewState extends State<_YieldView> {
                             ),
                           ),
                           if (state.isThinking) ...[
-                            const SizedBox(width: 8),
-                            const SizedBox(
+                            SizedBox(width: 8),
+                            SizedBox(
                               width: 14,
                               height: 14,
                               child: CircularProgressIndicator(
@@ -542,15 +654,22 @@ class _YieldViewState extends State<_YieldView> {
                       ),
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                          padding: EdgeInsets.only(
+                            left: 16,
+                            right: 16,
+                            bottom: 16,
+                          ),
                           child: Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(12),
+                            padding: EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.04),
                               borderRadius: BorderRadius.circular(8),
                               border: Border(
-                                left: BorderSide(color: Colors.amber.shade700, width: 3),
+                                left: BorderSide(
+                                  color: Colors.amber.shade700,
+                                  width: 3,
+                                ),
                               ),
                             ),
                             child: Text(
@@ -560,7 +679,8 @@ class _YieldViewState extends State<_YieldView> {
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontFamily: 'monospace',
                                 fontStyle: FontStyle.italic,
-                                color: theme.textTheme.bodySmall?.color?.withOpacity(0.85),
+                                color: theme.textTheme.bodySmall?.color
+                                    ?.withOpacity(0.85),
                               ),
                             ),
                           ),
@@ -568,7 +688,7 @@ class _YieldViewState extends State<_YieldView> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                 ],
 
                 // AI Agronomist Yield Prediction Report Markdown
@@ -580,21 +700,24 @@ class _YieldViewState extends State<_YieldView> {
                       side: BorderSide(color: colorScheme.outlineVariant),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16),
                       child: MarkdownBody(
                         data: state.aiReport,
                         selectable: true,
-                        styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-                          h1: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
-                          ),
-                          h2: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
-                          ),
-                          p: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-                        ),
+                        styleSheet: MarkdownStyleSheet.fromTheme(theme)
+                            .copyWith(
+                              h1: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                              h2: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                              p: theme.textTheme.bodyMedium?.copyWith(
+                                height: 1.5,
+                              ),
+                            ),
                       ),
                     ),
                   ),
@@ -602,22 +725,27 @@ class _YieldViewState extends State<_YieldView> {
               ],
 
               if (state.state == LoadState.error && state.error != null) ...[
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: colorScheme.errorContainer.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colorScheme.error.withOpacity(0.5)),
+                    border: Border.all(
+                      color: colorScheme.error.withOpacity(0.5),
+                    ),
                   ),
                   child: Row(
                     children: [
                       Icon(Icons.error_outline, color: colorScheme.error),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           state.error!,
-                          style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            color: colorScheme.error,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -637,12 +765,16 @@ class _YieldViewState extends State<_YieldView> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isDone ? Colors.green.withOpacity(0.12) : Colors.amber.withOpacity(0.12),
+            color: isDone
+                ? Colors.green.withOpacity(0.12)
+                : Colors.amber.withOpacity(0.12),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isDone ? Colors.green.withOpacity(0.3) : Colors.amber.withOpacity(0.3),
+              color: isDone
+                  ? Colors.green.withOpacity(0.3)
+                  : Colors.amber.withOpacity(0.3),
             ),
           ),
           child: Row(
@@ -653,7 +785,7 @@ class _YieldViewState extends State<_YieldView> {
                 size: 16,
                 color: isDone ? Colors.green.shade800 : Colors.amber.shade800,
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Text(
                 isDone ? 'ANALYSIS COMPLETE' : 'AI STREAMING...',
                 style: TextStyle(
@@ -666,12 +798,15 @@ class _YieldViewState extends State<_YieldView> {
             ],
           ),
         ),
-        const Spacer(),
+        Spacer(),
         if (isDone)
           TextButton.icon(
             onPressed: () => context.read<YieldCubit>().resetAnalysis(),
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('New Analysis', style: TextStyle(fontSize: 12)),
+            icon: Icon(Icons.refresh, size: 16),
+            label: Text(
+              context.ui('New Analysis'),
+              style: TextStyle(fontSize: 12),
+            ),
           ),
       ],
     );

@@ -106,9 +106,7 @@ class _AdvisorSheetState extends State<AdvisorSheet> {
                             ? context.tr('saved')
                             : context.tr('save_report'),
                         icon: Icon(
-                          state.saved
-                              ? Icons.bookmark
-                              : Icons.bookmark_border,
+                          state.saved ? Icons.bookmark : Icons.bookmark_border,
                         ),
                         onPressed: state.saved
                             ? null

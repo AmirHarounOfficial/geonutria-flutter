@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,6 +9,7 @@ import '../../core/network/api_client.dart';
 import '../auth/bloc/auth_cubit.dart';
 import '../deep_analysis/data/analysis_context.dart';
 import 'pdf_saver.dart';
+import 'report_store.dart';
 
 /// Generates a PDF farm report via `POST /generate-report` with aggregated farm
 /// context & sensor telemetry, previews it, and shares it.
@@ -25,25 +27,8 @@ class _ReportScreenState extends State<ReportScreen> {
   Uint8List? _pdfBytes;
   DateTime? _generatedAt;
 
-  final _sections = <String, bool>{
-    'include_iot': true,
-    'include_leaf_ai': true,
-    'include_soil_ai': true,
-    'include_crop_ai': true,
-    'include_yield_ai': true,
-    'include_consultant': true,
-    'include_satellite': true,
-  };
-
-  static const _sectionLabels = {
-    'include_iot': 'IoT sensors',
-    'include_leaf_ai': 'Leaf diagnosis',
-    'include_soil_ai': 'Soil analysis',
-    'include_crop_ai': 'Crop recommendation',
-    'include_yield_ai': 'Yield prediction',
-    'include_consultant': 'AI consultant',
-    'include_satellite': 'Satellite',
-  };
+  final _sections = {for (final key in ReportStore.sections.keys) key: true};
+  String? _reportLanguage;
 
   @override
   void initState() {
@@ -66,76 +51,86 @@ class _ReportScreenState extends State<ReportScreen> {
     super.dispose();
   }
 
-  Future<Map<String, dynamic>> _buildReportPayload(ApiClient api, String lang) async {
-    final uid = context.read<AuthCubit>().state.userId ?? api.userId ?? 1;
-
-    Map<String, dynamic> iotData = {
-      "Nitrogen_Level": 80,
-      "Phosphorus_Level": 40,
-      "Potassium_Level": 45,
-      "Soil_Moisture": 65,
-      "Humidity": 60,
-      "Ambient_Temperature": 28,
-      "Soil_pH": 6.5,
-      "Soil_Salinity": 1.2
-    };
-
-    try {
-      final devices = await api.get('/my-devices', query: api.authQuery());
-      if (devices is List && devices.isNotEmpty) {
-        final devId = devices.first['id'];
-        final hist = await api.get('/iot-history/$devId', query: {'limit': 1});
-        if (hist is Map && hist['status'] == 'success' && hist['data'] is List && (hist['data'] as List).isNotEmpty) {
-          final reading = (hist['data'] as List).first as Map;
-          iotData = {
-            "Nitrogen_Level": reading['nitrogen'] ?? 80,
-            "Phosphorus_Level": reading['phosphorus'] ?? 40,
-            "Potassium_Level": reading['potassium'] ?? 45,
-            "Soil_Moisture": reading['humidity'] ?? 65,
-            "Humidity": reading['humidity'] ?? 60,
-            "Ambient_Temperature": reading['temperature'] ?? 28,
-            "Soil_pH": reading['ph'] ?? 6.5,
+  Future<Map<String, dynamic>> _buildReportPayload(
+    ApiClient api,
+    String lang,
+  ) async {
+    final uid = context.read<AuthCubit>().state.userId;
+    if (uid == null) throw StateError('Not signed in');
+    final payload = api.reports.payload(
+      userId: uid,
+      lang: lang,
+      farmName: _farmName.text.trim().isEmpty
+          ? context.ui('Smart Farm')
+          : _farmName.text.trim(),
+      farmerName: _farmerName.text.trim().isEmpty
+          ? context.ui('Farm Manager')
+          : _farmerName.text.trim(),
+      selected: _sections.entries
+          .where((e) => e.value)
+          .map((e) => e.key)
+          .toSet(),
+    );
+    var imageBytes = 0;
+    if ((payload['options'] as Map)['include_device_map'] == true) {
+      final imagery = <Map<String, dynamic>>[];
+      for (final raw in payload['device_imagery'] as List? ?? []) {
+        final d = Map<String, dynamic>.from(raw);
+        final lat = (d['latitude'] as num).toDouble();
+        final lon = (d['longitude'] as num).toDouble();
+        final cosine = math.cos(lat * math.pi / 180);
+        final halfSpan = 156543.03392 * cosine / math.pow(2, 17) * 1024 / 2;
+        final dLat = halfSpan / 111320;
+        final dLon = halfSpan / (111320 * math.max(.05, cosine));
+        final url = Uri.https(
+          'server.arcgisonline.com',
+          '/ArcGIS/rest/services/World_Imagery/MapServer/export',
+          {
+            'bbox': '${lon - dLon},${lat - dLat},${lon + dLon},${lat + dLat}',
+            'bboxSR': '4326',
+            'imageSR': '3857',
+            'size': '1024,1024',
+            'format': 'jpg',
+            'transparent': 'false',
+            'f': 'image',
+          },
+        );
+        final image = await api.reportImage(url.toString());
+        final fits = image != null && imageBytes + image.length < 5500000;
+        if (fits) imageBytes += image.length;
+        imagery.add({
+          ...d,
+          'image_base64': fits ? image : null,
+          'unavailable': !fits,
+          'captured_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
+      payload['device_imagery'] = imagery;
+    }
+    if ((payload['options'] as Map)['include_satellite'] == true) {
+      final transformed = <String, dynamic>{};
+      final indices = payload['satellite_data'] as Map? ?? {};
+      for (final entry in indices.entries) {
+        if (entry.value is! Map) continue;
+        final index = entry.value as Map;
+        for (final slot in ['current', 'past']) {
+          final image = await api.reportImage(index['${slot}_url']?.toString());
+          final withinBudget =
+              image != null && imageBytes + image.length < 5500000;
+          if (withinBudget) imageBytes += image.length;
+          transformed['${slot == 'current' ? 'new' : 'old'}_${entry.key}'] = {
+            'map': withinBudget ? image : null,
+            'unavailable': !withinBudget,
+            'val': index['${slot}_val'],
+            'insight': AppLocalizations(
+              Locale(lang),
+            ).tr('sat_${index['${slot}_insight'] ?? 'no_data'}'),
           };
         }
       }
-    } catch (_) {}
-
-    return {
-      'user_id': uid,
-      'options': {..._sections, 'language': lang},
-      'farm_name': _farmName.text.trim().isEmpty ? 'GeoNutria Smart Farm' : _farmName.text.trim(),
-      'farmer_name': _farmerName.text.trim().isEmpty ? 'Farm Manager' : _farmerName.text.trim(),
-      'iot_data': iotData,
-      'iot_ai_status': 'Optimal',
-      'iot_ai_confidence': 95,
-      'crop_inputs': {
-        'Nitrogen': '${iotData['Nitrogen_Level']} mg/kg',
-        'Phosphorus': '${iotData['Phosphorus_Level']} mg/kg',
-        'Potassium': '${iotData['Potassium_Level']} mg/kg',
-        'Temperature': '${iotData['Ambient_Temperature']} °C',
-        'Humidity': '${iotData['Humidity']}%',
-        'Soil pH': '${iotData['Soil_pH']}',
-        'Rainfall': '200 mm'
-      },
-      'crop_recommendations': [
-        {'crop': 'Wheat', 'confidence': 94},
-        {'crop': 'Maize', 'confidence': 88},
-        {'crop': 'Rice', 'confidence': 82}
-      ],
-      'yield_inputs': {
-        'Crop': 'Wheat',
-        'Nitrogen': iotData['Nitrogen_Level'],
-        'Phosphorus': iotData['Phosphorus_Level'],
-        'Potassium': iotData['Potassium_Level'],
-        'Temperature': iotData['Ambient_Temperature'],
-        'Humidity': iotData['Humidity'],
-        'pH': iotData['Soil_pH']
-      },
-      'yield_prediction': {'predicted_yield_kg_per_ha': 3450},
-      'ai_consultant_text': lang == 'ar'
-          ? 'تشخيص المزرعة الشامل:\n١. مستويات المغذيات (النيتروجين، الفسفور، البوتاسيوم) ورطوبة التربة ضمن النطاق الأمثل للمحاصيل الموسمية.\n٢. نظام الري الموصى به: الري بالتنقيط بمعدل ٢٥ م³/فدان/أسبوع.\n٣. خطر الأمراض: منخفض. يوصى بالمتابعة الميدانية الدورية.'
-          : 'Integrated Farm Diagnosis:\n1. Soil nutrients (N, P, K) and soil moisture readings are within optimal range for seasonal crops.\n2. Recommended Irrigation: Drip irrigation 25 m³/Feddan/Week.\n3. Disease Risk: Low. Continue routine field monitoring.',
-    };
+      payload['satellite_data'] = transformed;
+    }
+    return payload;
   }
 
   Future<void> _generateReport() async {
@@ -145,20 +140,27 @@ class _ReportScreenState extends State<ReportScreen> {
       final lang = context.locale.languageCode;
       final payload = await _buildReportPayload(api, lang);
       final bytes = await api.postPdf('/generate-report', body: payload);
+      if (!mounted || lang != context.locale.languageCode) return;
+      context.read<AuthCubit>().refreshCredits();
       setState(() {
+        _reportLanguage = lang;
         _pdfBytes = bytes;
         _generatedAt = DateTime.now();
       });
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('Report generated successfully!')));
+          ..showSnackBar(
+            SnackBar(
+              content: Text(context.ui('Report generated successfully!')),
+            ),
+          );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('Report generation failed: $e')));
+        ..showSnackBar(SnackBar(content: Text(context.tr('error_generic'))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -168,140 +170,199 @@ class _ReportScreenState extends State<ReportScreen> {
     if (_pdfBytes == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Please generate the report first.')));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(context.ui('Please generate the report first.')),
+          ),
+        );
       return;
     }
     try {
       if (emailOnly) {
-        await sharePdfViaEmail(_pdfBytes!, 'geonutria_farm_report.pdf');
+        await sharePdfViaEmail(
+          _pdfBytes!,
+          'geonutria_farm_report.pdf',
+          title: context.ui('GeoNutria Farm Report'),
+        );
       } else {
-        await sharePdf(_pdfBytes!, 'geonutria_farm_report.pdf');
+        await sharePdf(
+          _pdfBytes!,
+          'geonutria_farm_report.pdf',
+          title: context.ui('GeoNutria Farm Report'),
+        );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('Share failed: $e')));
+        ..showSnackBar(SnackBar(content: Text(context.tr('error_generic'))));
     }
   }
 
   Future<void> _downloadReport() async {
     if (_pdfBytes == null) return;
     try {
-      final savedPath = await savePdf(_pdfBytes!, 'geonutria_farm_report.pdf');
+      final savedPath = await savePdf(
+        _pdfBytes!,
+        'geonutria_farm_report.pdf',
+        title: context.ui('Save Report PDF'),
+      );
+      if (savedPath == null) return;
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(savedPath != null && savedPath.isNotEmpty
-              ? 'Report saved to $savedPath'
-              : 'Report downloaded successfully'),
-        ));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              savedPath.isNotEmpty
+                  ? '${context.ui('Report saved to')} $savedPath'
+                  : context.ui('Report downloaded successfully'),
+            ),
+          ),
+        );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('Download failed: $e')));
+        ..showSnackBar(SnackBar(content: Text(context.tr('error_generic'))));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text('Generate & Share PDF Report',
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _farmName,
-          decoration: const InputDecoration(
-            labelText: 'Farm Name',
-            prefixIcon: Icon(Icons.agriculture),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _farmerName,
-          decoration: const InputDecoration(
-            labelText: 'Farmer / Reporter Name',
-            prefixIcon: Icon(Icons.person),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text('Report Sections', style: Theme.of(context).textTheme.titleSmall),
-        for (final entry in _sections.entries)
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(_sectionLabels[entry.key] ?? entry.key),
-            value: entry.value,
-            onChanged: (v) => setState(() => _sections[entry.key] = v ?? false),
-          ),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          onPressed: _busy ? null : _generateReport,
-          icon: _busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.picture_as_pdf),
-          label: const Text('Generate Report  ·  5 ⚡'),
-        ),
-        if (_pdfBytes != null) ...[
-          const SizedBox(height: 20),
-          Card(
-            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Report Ready (${(_pdfBytes!.length / 1024).toStringAsFixed(1)} KB)',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  if (_generatedAt != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Generated on ${_generatedAt!.hour.toString().padLeft(2, '0')}:${_generatedAt!.minute.toString().padLeft(2, '0')}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () => _shareReport(emailOnly: false),
-                          icon: const Icon(Icons.share),
-                          label: const Text('Share'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _downloadReport,
-                          icon: const Icon(Icons.download),
-                          label: const Text('Download'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+    final store = context.read<ApiClient>().reports;
+    final lang = context.locale.languageCode;
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) {
+        final available = store.available(lang);
+        return ListView(
+          padding: EdgeInsets.all(16),
+          children: [
+            Text(
+              context.ui('Generate & Share PDF Report'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            SizedBox(height: 12),
+            TextField(
+              controller: _farmName,
+              onChanged: (_) => setState(() => _pdfBytes = null),
+              decoration: InputDecoration(
+                labelText: context.ui('Farm Name'),
+                prefixIcon: Icon(Icons.agriculture),
               ),
             ),
-          ),
-        ],
-      ],
+            SizedBox(height: 12),
+            TextField(
+              controller: _farmerName,
+              onChanged: (_) => setState(() => _pdfBytes = null),
+              decoration: InputDecoration(
+                labelText: context.ui('Farmer / Reporter Name'),
+                prefixIcon: Icon(Icons.person),
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              context.ui('Report Sections'),
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            for (final entry in _sections.entries)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(context.ui(ReportStore.sections[entry.key]!)),
+                value: entry.value && available.contains(entry.key),
+                subtitle: available.contains(entry.key)
+                    ? null
+                    : Text(
+                        context.ui(
+                          'Run this feature in the selected language first.',
+                        ),
+                      ),
+                onChanged: _busy || !available.contains(entry.key)
+                    ? null
+                    : (v) => setState(() {
+                        _sections[entry.key] = v ?? false;
+                        _pdfBytes = null;
+                      }),
+              ),
+            SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed:
+                  _busy ||
+                      !_sections.entries.any(
+                        (e) => e.value && available.contains(e.key),
+                      )
+                  ? null
+                  : _generateReport,
+              icon: _busy
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(Icons.picture_as_pdf),
+              label: Text(context.ui('Generate Report  ·  5 ⚡')),
+            ),
+            if (_pdfBytes != null && _reportLanguage == lang) ...[
+              SizedBox(height: 20),
+              Card(
+                color: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text(
+                            '${context.ui('Report Ready')} (${(_pdfBytes!.length / 1024).toStringAsFixed(1)} KB)',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      if (_generatedAt != null) ...[
+                        SizedBox(height: 4),
+                        Text(
+                          '${context.ui('Generated on')} ${_generatedAt!.hour.toString().padLeft(2, '0')}:${_generatedAt!.minute.toString().padLeft(2, '0')}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                      SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () => _shareReport(emailOnly: false),
+                              icon: Icon(Icons.share),
+                              label: Text(context.ui('Share')),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _downloadReport,
+                              icon: Icon(Icons.download),
+                              label: Text(context.ui('Download')),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
-

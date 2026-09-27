@@ -1,3 +1,4 @@
+import 'package:geonutria_mobile/core/localization/localized_number.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -49,18 +50,13 @@ class _SatelliteView extends StatelessWidget {
       length: 2,
       child: Column(
         children: [
-          TabBar(tabs: [
-            Tab(text: context.tr('tab_indices')),
-            Tab(text: context.tr('tab_palm_count')),
-          ]),
-          Expanded(
-            child: TabBarView(
-              children: const [
-                _IndicesTab(),
-                _PalmTab(),
-              ],
-            ),
+          TabBar(
+            tabs: [
+              Tab(text: context.tr('tab_indices')),
+              Tab(text: context.tr('tab_palm_count')),
+            ],
           ),
+          Expanded(child: TabBarView(children: [_IndicesTab(), _PalmTab()])),
         ],
       ),
     );
@@ -84,7 +80,7 @@ class _IndicesTabState extends State<_IndicesTab>
   final List<LatLng> _polygon = [];
   bool _locating = false;
 
-  DateTime _start = DateTime.now().subtract(const Duration(days: 30));
+  DateTime _start = DateTime.now().subtract(Duration(days: 30));
   DateTime _end = DateTime.now();
   int _compareValue = 3;
   String _compareUnit = 'months';
@@ -104,7 +100,9 @@ class _IndicesTabState extends State<_IndicesTab>
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(
-              const SnackBar(content: Text('Location permission was denied.')),
+              SnackBar(
+                content: Text(context.ui('Location permission was denied.')),
+              ),
             );
         }
         return;
@@ -122,9 +120,7 @@ class _IndicesTabState extends State<_IndicesTab>
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(content: Text('Could not fetch location: $e')),
-          );
+          ..showSnackBar(SnackBar(content: Text(context.errorText('$e'))));
       }
     } finally {
       if (mounted) setState(() => _locating = false);
@@ -157,23 +153,30 @@ class _IndicesTabState extends State<_IndicesTab>
     if (!usePolygon && _point == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-            content: Text('Tap the map to set a point or draw a polygon.')));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              context.ui('Tap the map to set a point or draw a polygon.'),
+            ),
+          ),
+        );
       return;
     }
     context.read<SatelliteCubit>().analyze(
-          lat: usePolygon ? null : _point!.latitude,
-          lon: usePolygon ? null : _point!.longitude,
-          radiusKm: _radius,
-          startDate: fmt.format(_start),
-          endDate: fmt.format(_end),
-          compareValue: _compareValue,
-          compareUnit: _compareUnit,
-          maxCloudCover: _cloud.round(),
-          polygonCoords: usePolygon
-              ? [for (final p in _polygon) [p.latitude, p.longitude]]
-              : null,
-        );
+      lat: usePolygon ? null : _point!.latitude,
+      lon: usePolygon ? null : _point!.longitude,
+      radiusKm: _radius,
+      startDate: fmt.format(_start),
+      endDate: fmt.format(_end),
+      compareValue: _compareValue,
+      compareUnit: _compareUnit,
+      maxCloudCover: _cloud.round(),
+      polygonCoords: usePolygon
+          ? [
+              for (final p in _polygon) [p.latitude, p.longitude],
+            ]
+          : null,
+    );
   }
 
   @override
@@ -183,7 +186,7 @@ class _IndicesTabState extends State<_IndicesTab>
       builder: (context, state) {
         final busy = state.analysisState == LoadState.loading;
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -193,11 +196,11 @@ class _IndicesTabState extends State<_IndicesTab>
                   children: [
                     AppMap(
                       controller: _map,
-                      center: _point ?? const LatLng(26.8206, 30.8025),
+                      center: _point ?? LatLng(26.8206, 30.8025),
                       zoom: 6,
                       satellite: true,
                       onTap: _onTap,
-                      markers: _polygonMode || _point == null ? const [] : [_point!],
+                      markers: _polygonMode || _point == null ? [] : [_point!],
                       polygonPoints: _polygonMode ? _polygon : null,
                     ),
                     Positioned(
@@ -208,32 +211,34 @@ class _IndicesTabState extends State<_IndicesTab>
                         onPressed: _locating ? null : _useMyLocation,
                         backgroundColor: Theme.of(context).colorScheme.surface,
                         child: _locating
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
-                            : const Icon(Icons.my_location),
+                            : Icon(Icons.my_location),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Row(
               children: [
                 FilterChip(
-                  label: const Text('Polygon mode'),
+                  label: Text(context.ui('Polygon mode')),
                   selected: _polygonMode,
                   onSelected: (v) => setState(() => _polygonMode = v),
                 ),
-                const Spacer(),
+                Spacer(),
                 if (_polygonMode && _polygon.isNotEmpty)
                   TextButton.icon(
                     onPressed: () => setState(_polygon.clear),
-                    icon: const Icon(Icons.clear, size: 18),
-                    label: Text('Clear (${_polygon.length})'),
+                    icon: Icon(Icons.clear, size: 18),
+                    label: Text('${context.ui('Clear')} (${_polygon.length})'),
                   ),
               ],
             ),
@@ -246,7 +251,7 @@ class _IndicesTabState extends State<_IndicesTab>
                     onTap: () => _pickDate(true),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: _DateField(
                     label: 'End',
@@ -256,34 +261,46 @@ class _IndicesTabState extends State<_IndicesTab>
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     initialValue: '$_compareValue',
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Compare with past'),
-                    onChanged: (v) => _compareValue = int.tryParse(v) ?? 3,
+                    decoration: InputDecoration(
+                      labelText: context.ui('Compare with past'),
+                    ),
+                    onChanged: (v) => _compareValue = parseLocalizedInt(v) ?? 3,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _compareUnit,
-                    decoration: const InputDecoration(labelText: 'Unit'),
-                    items: const [
-                      DropdownMenuItem(value: 'weeks', child: Text('weeks')),
-                      DropdownMenuItem(value: 'months', child: Text('months')),
-                      DropdownMenuItem(value: 'years', child: Text('years')),
+                    decoration: InputDecoration(labelText: context.ui('Unit')),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'weeks',
+                        child: Text(context.ui('weeks')),
+                      ),
+                      DropdownMenuItem(
+                        value: 'months',
+                        child: Text(context.ui('months')),
+                      ),
+                      DropdownMenuItem(
+                        value: 'years',
+                        child: Text(context.ui('years')),
+                      ),
                     ],
-                    onChanged: (v) => setState(() => _compareUnit = v ?? 'months'),
+                    onChanged: (v) =>
+                        setState(() => _compareUnit = v ?? 'months'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Max cloud cover: ${_cloud.round()}%'),
+            SizedBox(height: 8),
+            Text('${context.ui('Max cloud cover')} ${_cloud.round()}%'),
             Slider(
               value: _cloud,
               min: 0,
@@ -293,7 +310,7 @@ class _IndicesTabState extends State<_IndicesTab>
               onChanged: (v) => setState(() => _cloud = v),
             ),
             if (!_polygonMode) ...[
-              Text('Radius: ${_radius.toStringAsFixed(1)} km'),
+              Text('${context.ui('Radius')} ${_radius.toStringAsFixed(1)} km'),
               Slider(
                 value: _radius,
                 min: 0.2,
@@ -303,26 +320,30 @@ class _IndicesTabState extends State<_IndicesTab>
                 onChanged: (v) => setState(() => _radius = v),
               ),
             ],
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             FilledButton.icon(
               onPressed: busy ? null : _analyze,
               icon: busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.satellite_alt),
-              label: const Text('Analyze  ·  5 ⚡'),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(Icons.satellite_alt),
+              label: Text(context.ui('Analyze  ·  5 ⚡')),
             ),
-            if (state.analysisState == LoadState.error && state.error != null) ...[
-              const SizedBox(height: 16),
+            if (state.analysisState == LoadState.error &&
+                state.error != null) ...[
+              SizedBox(height: 16),
               ErrorView(message: state.error!),
             ],
             if (state.result != null) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               _ResultMeta(result: state.result!),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               for (final idx in state.result!.indices) _IndexCard(index: idx),
             ],
           ],
@@ -333,7 +354,11 @@ class _IndicesTabState extends State<_IndicesTab>
 }
 
 class _DateField extends StatelessWidget {
-  const _DateField({required this.label, required this.date, required this.onTap});
+  const _DateField({
+    required this.label,
+    required this.date,
+    required this.onTap,
+  });
   final String label;
   final DateTime date;
   final VoidCallback onTap;
@@ -343,7 +368,7 @@ class _DateField extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: context.ui(label)),
         child: Text(DateFormat('yyyy-MM-dd').format(date)),
       ),
     );
@@ -358,13 +383,15 @@ class _ResultMeta extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Current: ${result.dateCurrent}   ·   Past: ${result.datePast}'),
-            const SizedBox(height: 4),
-            Text('Area: ${result.areaKm2} km²'),
+            Text(
+              '${context.ui('Current')} ${result.dateCurrent}   ·   ${context.ui('Past')}: ${result.datePast}',
+            ),
+            SizedBox(height: 4),
+            Text('${context.ui('Area')} ${result.areaKm2} km²'),
           ],
         ),
       ),
@@ -381,32 +408,47 @@ class _IndexCard extends StatelessWidget {
     final up = index.delta >= 0;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Text(index.key.toUpperCase(),
-                    style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
-                Text(index.currentVal.toStringAsFixed(3),
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(width: 6),
-                Icon(up ? Icons.arrow_upward : Icons.arrow_downward,
-                    size: 16, color: up ? Colors.green : Colors.red),
-                Text(index.delta.abs().toStringAsFixed(3),
-                    style: TextStyle(color: up ? Colors.green : Colors.red)),
+                Text(
+                  index.key.toUpperCase(),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Spacer(),
+                Text(
+                  index.currentVal.toStringAsFixed(3),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                SizedBox(width: 6),
+                Icon(
+                  up ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 16,
+                  color: up ? Colors.green : Colors.red,
+                ),
+                Text(
+                  index.delta.abs().toStringAsFixed(3),
+                  style: TextStyle(color: up ? Colors.green : Colors.red),
+                ),
               ],
             ),
-            Text(index.currentInsight.replaceAll('_', ' '),
-                style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
+            Text(
+              context.tr('sat_${index.currentInsight}'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _PlotImage(label: 'Now', url: index.currentImage)),
-                const SizedBox(width: 8),
-                Expanded(child: _PlotImage(label: 'Past', url: index.pastImage)),
+                Expanded(
+                  child: _PlotImage(label: 'Now', url: index.currentImage),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: _PlotImage(label: 'Past', url: index.pastImage),
+                ),
               ],
             ),
           ],
@@ -425,20 +467,24 @@ class _PlotImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
-        const SizedBox(height: 4),
+        Text(context.ui(label), style: Theme.of(context).textTheme.labelSmall),
+        SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: AspectRatio(
             aspectRatio: 1,
             child: url == null
-                ? Container(color: Theme.of(context).colorScheme.surfaceContainerHighest)
+                ? Container(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                  )
                 : CachedNetworkImage(
                     imageUrl: url!,
                     fit: BoxFit.cover,
                     placeholder: (_, _) =>
-                        const Center(child: CircularProgressIndicator()),
-                    errorWidget: (_, _, _) => const Icon(Icons.broken_image),
+                        Center(child: CircularProgressIndicator()),
+                    errorWidget: (_, _, _) => Icon(Icons.broken_image),
                   ),
           ),
         ),
@@ -474,11 +520,13 @@ class _PalmTabState extends State<_PalmTab> with AutomaticKeepAliveClientMixin {
       builder: (context, state) {
         final busy = state.palmState == LoadState.loading;
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           children: [
-            Text('Upload an aerial image to count palm trees (5 ⚡).',
-                style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 12),
+            Text(
+              context.ui('Upload an aerial image to count palm trees (5 ⚡).'),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            SizedBox(height: 12),
             InkWell(
               onTap: busy ? null : _pick,
               borderRadius: BorderRadius.circular(16),
@@ -487,33 +535,38 @@ class _PalmTabState extends State<_PalmTab> with AutomaticKeepAliveClientMixin {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant),
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: _file == null
-                    ? const Center(child: Icon(Icons.add_a_photo_outlined, size: 40))
+                    ? Center(child: Icon(Icons.add_a_photo_outlined, size: 40))
                     : PickedImage(file: _file!),
               ),
             ),
             if (busy)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(16),
                 child: LinearProgressIndicator(),
               ),
             if (state.palm != null) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      Text('${state.palm!.count}',
-                          style: Theme.of(context).textTheme.displaySmall),
-                      const Text('palm trees detected'),
+                      Text(
+                        '${state.palm!.count}',
+                        style: Theme.of(context).textTheme.displaySmall,
+                      ),
+                      Text(context.ui('palm trees detected')),
                       if (state.palm!.annotatedImage != null) ...[
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         DataUriImage(
-                            dataUri: state.palm!.annotatedImage!, height: 260),
+                          dataUri: state.palm!.annotatedImage!,
+                          height: 260,
+                        ),
                       ],
                     ],
                   ),
